@@ -71,5 +71,18 @@
     "tab_media": "Media",
     "tab_likes": "Likes",
     "empty": "No posts yet"
+  },
+  "edit_profile": {
+    "button": "Edit profile",
+    "title": "Edit profile",
+    "save": "Save",
+    "saving": "Saving...",
+    "name": "Name",
+    "bio": "Bio",
+    "location": "Location",
+    "birth_date": "Date of birth",
+    "change_avatar": "Change avatar",
+    "name_required": "Name cannot be empty",
+    "save_error": "Failed to save changes"
   }
 }

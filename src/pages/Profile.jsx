@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import Sidebar from '../components/Sidebar';
 import MobileNav from '../components/MobileNav';
 import Post from '../components/Post';
+import EditProfileModal from '../components/EditProfileModal';
 import '../styles/Profile.css';
 
 const Profile = () => {
@@ -13,7 +14,10 @@ const Profile = () => {
   const [posts, setPosts]   = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError]   = useState('');
-  const { t } = useAuth();
+  const [editOpen, setEditOpen] = useState(false);
+  const { user: authUser, updateUser, t } = useAuth();
+
+  const isOwn = authUser && user && authUser.username === user.username;
 
   useEffect(() => { loadProfile(); }, [username]);
 
@@ -35,8 +39,18 @@ const Profile = () => {
 
   const handlePostDeleted = (postId) => setPosts(posts.filter((p) => p.id !== postId));
 
-  const formatDate = (ts) =>
+  const handleProfileSaved = (updatedUser) => {
+    setUser((prev) => ({ ...prev, ...updatedUser }));
+    if (isOwn) updateUser(updatedUser);
+  };
+
+  const formatJoined = (ts) =>
     new Date(ts).toLocaleDateString(t('locale'), { year: 'numeric', month: 'long' });
+
+  const formatBirthDate = (date) => {
+    if (!date) return null;
+    return new Date(date).toLocaleDateString(t('locale'), { year: 'numeric', month: 'long', day: 'numeric' });
+  };
 
   if (loading) {
     return (
@@ -81,13 +95,21 @@ const Profile = () => {
             className="profile-avatar"
           />
 
+          {isOwn && (
+            <button className="profile-edit-btn" onClick={() => setEditOpen(true)}>
+              {t('edit_profile.button')}
+            </button>
+          )}
+
           <div className="profile-name">{user.display_name}</div>
           <div className="profile-handle">@{user.username}</div>
 
           {user.bio && <div className="profile-bio">{user.bio}</div>}
 
           <div className="profile-meta">
-            <span>📅 {t('profile.joined')} {formatDate(user.created_at)}</span>
+            {user.location && <span>📍 {user.location}</span>}
+            {user.birth_date && <span>🎂 {formatBirthDate(user.birth_date)}</span>}
+            <span>📅 {t('profile.joined')} {formatJoined(user.created_at)}</span>
           </div>
 
           <div className="profile-stats">
@@ -115,6 +137,14 @@ const Profile = () => {
       </aside>
 
       <MobileNav />
+
+      {editOpen && (
+        <EditProfileModal
+          user={user}
+          onClose={() => setEditOpen(false)}
+          onSave={handleProfileSaved}
+        />
+      )}
     </div>
   );
 };

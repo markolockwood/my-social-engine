@@ -64,8 +64,8 @@ class User {
     // Возвращает пользователя по id (без пароля)
     public function getById($id) {
         $stmt = $this->db->query(
-            "SELECT id, username, email, display_name, bio, avatar_url, created_at,
-                    theme_preference, language
+            "SELECT id, username, email, display_name, bio, avatar_url, location, birth_date,
+                    created_at, theme_preference, language
              FROM users WHERE id = ?",
             [$id]
         );
@@ -82,7 +82,8 @@ class User {
     // Возвращает профиль по username вместе со счётчиками подписок и постов
     public function getByUsername($username) {
         $stmt = $this->db->query(
-            "SELECT u.id, u.username, u.display_name, u.bio, u.avatar_url, u.created_at,
+            "SELECT u.id, u.username, u.display_name, u.bio, u.avatar_url, u.location,
+                    u.birth_date, u.created_at,
                     (SELECT COUNT(*) FROM follows WHERE follower_id = u.id) as following_count,
                     (SELECT COUNT(*) FROM follows WHERE following_id = u.id) as followers_count,
                     (SELECT COUNT(*) FROM posts WHERE user_id = u.id) as posts_count
@@ -99,11 +100,25 @@ class User {
         return $user;
     }
 
-    // Обновляет отображаемое имя и биографию пользователя
-    public function updateProfile($userId, $displayName, $bio) {
+    // Обновляет поля профиля пользователя (только переданные поля)
+    public function updateProfile($userId, array $data) {
+        $allowed = ['display_name', 'bio', 'location', 'birth_date', 'avatar_url'];
+        $sets = [];
+        $params = [];
+
+        foreach ($allowed as $field) {
+            if (array_key_exists($field, $data)) {
+                $sets[] = "$field = ?";
+                $params[] = $data[$field];
+            }
+        }
+
+        if (empty($sets)) return true;
+
+        $params[] = $userId;
         $stmt = $this->db->query(
-            "UPDATE users SET display_name = ?, bio = ? WHERE id = ? RETURNING id",
-            [$displayName, $bio, $userId]
+            "UPDATE users SET " . implode(', ', $sets) . " WHERE id = ? RETURNING id",
+            $params
         );
 
         return $stmt->fetch() !== false;

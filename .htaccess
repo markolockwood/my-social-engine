@@ -3,6 +3,9 @@ RewriteEngine On
 # API запросы — передаём PHP как есть
 RewriteRule ^api/ - [L]
 
+# Загруженные файлы — раздаём напрямую
+RewriteRule ^uploads/ - [L]
+
 # Статические ассеты из dist/
 RewriteRule ^assets/(.*)$ /dist/assets/$1 [L]
 

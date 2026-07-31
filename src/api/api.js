@@ -32,7 +32,13 @@ export const authAPI = {
   login:          (data)  => api.post('/auth/login', data),
   getMe:          ()      => api.get('/auth/me'),
   updateTheme:    (theme) => api.patch('/user/theme',    { theme }),
-  updateLanguage: (lang)  => api.patch('/user/language', { language: lang })
+  updateLanguage: (lang)  => api.patch('/user/language', { language: lang }),
+  updateProfile:  (data)  => api.patch('/user/profile', data),
+  uploadAvatar:   (file)  => {
+    const form = new FormData();
+    form.append('avatar', file);
+    return api.post('/upload/avatar', form, { headers: { 'Content-Type': 'multipart/form-data' } });
+  }
 };
 
 export const postsAPI = {

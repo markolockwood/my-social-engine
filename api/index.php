@@ -241,6 +241,63 @@ try {
         sendResponse(['language' => $input['language']]);
     }
 
+    // PATCH /user/profile — обновление профиля (имя, bio, локация, дата рождения, аватар)
+    if ($path === '/user/profile' && $requestMethod === 'PATCH') {
+        $authUser = requireAuth();
+        $user = new User();
+
+        $allowed = ['display_name', 'bio', 'location', 'birth_date', 'avatar_url'];
+        $data = [];
+        foreach ($allowed as $field) {
+            if (array_key_exists($field, $input)) {
+                $data[$field] = $input[$field] === '' ? null : $input[$field];
+            }
+        }
+
+        if (isset($data['display_name']) && (strlen($data['display_name']) < 1 || strlen($data['display_name']) > 100)) {
+            sendError('Display name must be between 1 and 100 characters');
+        }
+
+        $user->updateProfile($authUser['userId'], $data);
+        $userData = $user->getById($authUser['userId']);
+
+        sendResponse(['user' => $userData]);
+    }
+
+    // POST /upload/avatar — загрузка аватара
+    if ($path === '/upload/avatar' && $requestMethod === 'POST') {
+        $authUser = requireAuth();
+
+        if (!isset($_FILES['avatar']) || $_FILES['avatar']['error'] !== UPLOAD_ERR_OK) {
+            sendError('No file uploaded');
+        }
+
+        $file = $_FILES['avatar'];
+        $allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+
+        if (!in_array($file['type'], $allowedTypes)) {
+            sendError('Invalid file type. Allowed: JPEG, PNG, GIF, WEBP');
+        }
+
+        if ($file['size'] > 5 * 1024 * 1024) {
+            sendError('File too large (max 5MB)');
+        }
+
+        $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+        $filename = 'avatar_' . $authUser['userId'] . '_' . time() . '.' . $ext;
+        $uploadDir = __DIR__ . '/../uploads/avatars/';
+
+        if (!is_dir($uploadDir)) {
+            mkdir($uploadDir, 0755, true);
+        }
+
+        if (!move_uploaded_file($file['tmp_name'], $uploadDir . $filename)) {
+            sendError('Failed to save file');
+        }
+
+        sendResponse(['url' => '/uploads/avatars/' . $filename], 201);
+    }
+
     // 404 — роут не найден
     sendError('Endpoint not found', 404);
 
