@@ -1,6 +1,6 @@
 # MyTwit - Социальная сеть
 
-Полнофункциональная социальная сеть в стиле Twitter с использованием React, PHP 8.0 и PostgreSQL.
+Готовый скрипт социальной сети в стиле Twitter на React, PHP 8.0 и PostgreSQL. Разворачивается на любом локальном или боевом сервере с Apache.
 
 ## Возможности
 
@@ -47,31 +47,31 @@ npm install
 
 ```bash
 psql -U postgres
-CREATE DATABASE mytwit;
-\c mytwit
+CREATE DATABASE ваша_база;
+\c ваша_база
 \i database/schema.sql
 \i database/migrations/001_add_theme_preference.sql
 \i database/migrations/002_add_language.sql
 ```
 
-Или можете выполнить SQL из файлов вручную в pgAdmin.
+Можно также выполнить SQL из файлов вручную через pgAdmin.
 
 ### 3. Настройка конфигурации
 
-Отредактируйте файл `config/config.php`:
+Отредактируйте файл `config/config.php` под свои параметры:
 
 ```php
 return [
     'database' => [
         'host' => 'localhost',
         'port' => '5432',
-        'dbname' => 'mytwit',
+        'dbname' => 'ваша_база',
         'username' => 'postgres',
-        'password' => 'ваш_пароль',  // Измените на ваш пароль
+        'password' => 'ваш_пароль',
         'charset' => 'utf8'
     ],
     'jwt' => [
-        'secret' => 'измените_этот_секретный_ключ',  // Измените в продакшене
+        'secret' => 'придумайте_надёжный_секретный_ключ',
         'expiration' => 86400 * 7 // 7 дней
     ]
 ];
@@ -79,47 +79,39 @@ return [
 
 ### 4. Настройка веб-сервера
 
-#### Apache (.htaccess уже настроен)
+Проект работает через Apache. В корне уже есть `.htaccess`, который обеспечивает:
+- маршрутизацию `/api/` к PHP
+- раздачу статических ассетов из `dist/assets/`
+- SPA-роутинг — все остальные пути возвращают `dist/index.html`
 
-Убедитесь, что mod_rewrite включен:
+Убедитесь, что для вашего домена включён `mod_rewrite` и `AllowOverride All`.
 
-```apache
-a2enmod rewrite
-service apache2 restart
-```
+Разместите файлы проекта в папке вашего домена и убедитесь, что веб-сервер указывает на неё как на корневую директорию.
 
-#### Nginx
-
-Добавьте в конфигурацию:
-
-```nginx
-location /api/ {
-    try_files $uri $uri/ /api/index.php?$query_string;
-}
-```
-
-### 5. Запуск приложения
-
-#### Режим разработки
-
-```bash
-npm run dev
-```
-
-Приложение будет доступно по адресу: http://localhost:3000
-
-#### Режим продакшен
+### 5. Сборка и запуск
 
 ```bash
 npm run build
 ```
 
-Соберёт приложение в папку `dist/`. Настройте веб-сервер на использование этой папки.
+После сборки откройте ваш домен в браузере. Перезапуск веб-сервера не требуется.
+
+Запускайте `npm run build` после каждого изменения файлов в `src/`.
+
+#### Режим разработки (с hot reload)
+
+Для удобной разработки с автоперезагрузкой:
+
+```bash
+npm run dev
+```
+
+Приложение будет доступно по адресу **http://ваш-домен:3333**
 
 ## Структура проекта
 
 ```
-mytwit.com/
+your-project/
 ├── api/                      # Backend PHP API
 │   ├── classes/
 │   │   ├── Database.php      # Класс подключения к БД

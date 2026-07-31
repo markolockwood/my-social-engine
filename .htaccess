@@ -1,7 +1,15 @@
 RewriteEngine On
 
-# Все запросы /api/* идут в api/index.php
-RewriteCond %{REQUEST_URI} ^/api/
+# API запросы — передаём PHP как есть
+RewriteRule ^api/ - [L]
+
+# Статические ассеты из dist/
+RewriteRule ^assets/(.*)$ /dist/assets/$1 [L]
+
+# Корневой путь — явно на dist/index.html
+RewriteRule ^$ /dist/index.html [L]
+
+# Для всех остальных маршрутов SPA — отдаём dist/index.html
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^api/(.*)$ api/index.php [QSA,L]
+RewriteRule ^(.*)$ /dist/index.html [L]
