@@ -1,0 +1,159 @@
+/* ===== CSS-переменные тем ===== */
+:root {
+  --bg:           #ffffff;
+  --bg-secondary: #f7f9f9;
+  --bg-hover:     rgba(0, 0, 0, 0.03);
+  --text:         #0f1419;
+  --text-muted:   #536471;
+  --border:       #eff3f4;
+  --input-border: #cfd9de;
+  --search-bg:    #eff3f4;
+  --header-bg:    rgba(255, 255, 255, 0.9);
+  --blue:         #1d9bf0;
+  --blue-hover:   #1a8cd8;
+  --blue-dim:     #e8f5fd;
+  --blue-faint:   #8ecdf8;
+}
+
+[data-theme="dark"] {
+  --bg:           #15202b;
+  --bg-secondary: #192734;
+  --bg-hover:     rgba(255, 255, 255, 0.03);
+  --text:         #f7f9f9;
+  --text-muted:   #8b98a5;
+  --border:       #38444d;
+  --input-border: #38444d;
+  --search-bg:    #253341;
+  --header-bg:    rgba(21, 32, 43, 0.9);
+  --blue-dim:     #1a2b38;
+  --blue-faint:   #1a6896;
+}
+
+/* ===== Сброс ===== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  transition: background 0.2s, color 0.2s;
+}
+
+a { text-decoration: none; color: inherit; }
+
+/* ===== Трёхколоночный макет ===== */
+.layout {
+  display: grid;
+  grid-template-columns: 280px 600px 350px;
+  max-width: 1280px;
+  width: 100%;
+  min-height: 100vh;
+  margin: 0 auto;
+}
+
+/* ===== Центральная колонка ===== */
+.main {
+  border-right: 1px solid var(--border);
+  border-left:  1px solid var(--border);
+  min-height: 100vh;
+}
+
+.main-header {
+  position: sticky;
+  top: 0;
+  background: var(--header-bg);
+  backdrop-filter: blur(6px);
+  border-bottom: 1px solid var(--border);
+  padding: 16px;
+  z-index: 10;
+}
+
+.main-header h2 {
+  font-size: 20px;
+  font-weight: 800;
+}
+
+/* ===== Правая колонка ===== */
+.right {
+  padding: 12px 16px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+
+.search-box {
+  background: var(--search-bg);
+  border-radius: 999px;
+  padding: 12px 16px;
+  font-size: 15px;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+}
+
+.panel {
+  background: var(--bg-secondary);
+  border-radius: 16px;
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+
+.panel h3 {
+  padding: 12px 16px;
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.panel-item {
+  padding: 10px 16px;
+  cursor: pointer;
+}
+
+.panel-item:hover { background: var(--bg-hover); }
+
+.trend-category { font-size: 13px; color: var(--text-muted); }
+.trend-name     { font-weight: 700; font-size: 15px; }
+.trend-count    { font-size: 13px; color: var(--text-muted); }
+
+/* ===== Общие компоненты ===== */
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 40px;
+}
+
+.loading-spinner { font-size: 16px; color: var(--text-muted); }
+.error-container { padding: 20px; text-align: center; color: #f91880; }
+.empty-state     { padding: 40px 20px; text-align: center; color: var(--text-muted); }
+
+.avatar         { border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+.avatar-sm      { width: 40px; height: 40px; }
+.avatar-md      { width: 48px; height: 48px; }
+
+/* ===== Адаптив: планшет (убираем правую колонку) ===== */
+@media (max-width: 1200px) {
+  .layout {
+    grid-template-columns: 280px 1fr;
+    max-width: 100%;
+  }
+  .right { display: none; }
+}
+
+/* ===== Адаптив: узкий планшет (иконки в сайдбаре) ===== */
+@media (max-width: 900px) {
+  .layout {
+    grid-template-columns: 80px 1fr;
+  }
+}
+
+/* ===== Адаптив: мобильный (убираем сайдбар, добавляем нижний бар) ===== */
+@media (max-width: 640px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+  .main {
+    border: none;
+    padding-bottom: 56px;
+  }
+}

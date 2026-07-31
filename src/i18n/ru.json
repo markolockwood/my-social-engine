@@ -1,0 +1,75 @@
+{
+  "locale": "ru-RU",
+  "nav": {
+    "home": "Главная",
+    "search": "Поиск",
+    "notifications": "Уведомления",
+    "messages": "Сообщения",
+    "bookmarks": "Закладки",
+    "profile": "Профиль",
+    "post": "Твитнуть"
+  },
+  "theme": {
+    "to_dark": "Тёмная тема",
+    "to_light": "Светлая тема"
+  },
+  "lang": {
+    "switch": "English"
+  },
+  "auth": {
+    "login_title": "Войти в MyTwit",
+    "register_title": "Создать аккаунт",
+    "username_or_email": "Имя пользователя или email",
+    "display_name": "Отображаемое имя",
+    "username": "Имя пользователя",
+    "email": "Email",
+    "password": "Пароль",
+    "password_hint": "Пароль (минимум 6 символов)",
+    "signing_in": "Вход...",
+    "sign_in": "Войти",
+    "registering": "Регистрация...",
+    "register": "Зарегистрироваться",
+    "no_account": "Нет аккаунта?",
+    "have_account": "Уже есть аккаунт?",
+    "login_error": "Ошибка входа",
+    "register_error": "Ошибка регистрации",
+    "logout_confirm": "Выйти из аккаунта?"
+  },
+  "feed": {
+    "title": "Главная",
+    "loading": "Загрузка...",
+    "error": "Ошибка при загрузке постов",
+    "empty": "Пока нет постов. Будьте первым!",
+    "trending": "Актуальные темы",
+    "search": "Поиск"
+  },
+  "compose": {
+    "placeholder": "Что происходит?",
+    "submit": "Твитнуть",
+    "submitting": "Публикация...",
+    "error": "Ошибка при создании поста"
+  },
+  "post": {
+    "delete_confirm": "Удалить этот твит?",
+    "delete_error": "Ошибка при удалении поста",
+    "time": {
+      "just_now": "только что",
+      "minutes": "м",
+      "hours": "ч",
+      "days": "д"
+    }
+  },
+  "profile": {
+    "loading": "Загрузка...",
+    "not_found": "Пользователь не найден",
+    "joined": "Регистрация:",
+    "following": "читаемых",
+    "followers": "читателей",
+    "posts_count": "твитов",
+    "tab_posts": "Твиты",
+    "tab_replies": "Ответы",
+    "tab_media": "Медиа",
+    "tab_likes": "Нравится",
+    "empty": "У этого пользователя пока нет постов"
+  }
+}

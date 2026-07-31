@@ -1,0 +1,154 @@
+.sidebar {
+  border-right: 1px solid var(--border);
+  padding: 12px 8px 12px 24px;
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+}
+
+.logo {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--blue);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 20px;
+  margin-bottom: 8px;
+  flex-shrink: 0;
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 16px;
+  border-radius: 999px;
+  font-size: 20px;
+  font-weight: 500;
+  width: fit-content;
+  transition: background 0.15s;
+  color: var(--text);
+}
+
+.nav-item:hover { background: var(--bg-hover); }
+.nav-item.active { font-weight: 700; }
+
+.nav-icon {
+  font-size: 22px;
+  width: 26px;
+  text-align: center;
+}
+
+.tweet-btn {
+  margin-top: 16px;
+  background: var(--blue);
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  padding: 14px 0;
+  font-size: 17px;
+  font-weight: 700;
+  cursor: pointer;
+  width: 90%;
+  transition: background 0.2s;
+}
+
+.tweet-btn:hover { background: var(--blue-hover); }
+
+/* Кнопка переключения темы */
+.theme-toggle {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 16px;
+  border-radius: 999px;
+  font-size: 20px;
+  font-weight: 500;
+  width: fit-content;
+  border: none;
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.theme-toggle:hover { background: var(--bg-hover); }
+
+.sidebar-user {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.sidebar-user:hover { background: var(--bg-hover); }
+
+.sidebar-user-info { flex: 1; overflow: hidden; }
+
+.sidebar-user-name {
+  font-weight: 700;
+  font-size: 15px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-user-handle {
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+/* ===== Узкий планшет: только иконки ===== */
+@media (max-width: 900px) {
+  .sidebar {
+    padding: 12px 8px;
+    align-items: center;
+  }
+
+  .nav-item span:not(.nav-icon),
+  .theme-toggle span:not(.nav-icon),
+  .tweet-btn-label,
+  .sidebar-user-info {
+    display: none;
+  }
+
+  .tweet-btn {
+    width: 48px;
+    height: 48px;
+    padding: 0;
+    font-size: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .tweet-btn::after {
+    content: '+';
+  }
+
+  .nav-item,
+  .theme-toggle { padding: 12px; gap: 0; }
+}
+
+/* ===== Мобильный: сайдбар скрыт ===== */
+@media (max-width: 640px) {
+  .sidebar { display: none; }
+}

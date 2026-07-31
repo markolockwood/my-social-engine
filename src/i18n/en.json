@@ -1,0 +1,75 @@
+{
+  "locale": "en-US",
+  "nav": {
+    "home": "Home",
+    "search": "Search",
+    "notifications": "Notifications",
+    "messages": "Messages",
+    "bookmarks": "Bookmarks",
+    "profile": "Profile",
+    "post": "Post"
+  },
+  "theme": {
+    "to_dark": "Dark theme",
+    "to_light": "Light theme"
+  },
+  "lang": {
+    "switch": "Русский"
+  },
+  "auth": {
+    "login_title": "Sign in to MyTwit",
+    "register_title": "Create your account",
+    "username_or_email": "Username or email",
+    "display_name": "Display name",
+    "username": "Username",
+    "email": "Email",
+    "password": "Password",
+    "password_hint": "Password (min. 6 characters)",
+    "signing_in": "Signing in...",
+    "sign_in": "Sign in",
+    "registering": "Creating account...",
+    "register": "Sign up",
+    "no_account": "Don't have an account?",
+    "have_account": "Already have an account?",
+    "login_error": "Login error",
+    "register_error": "Registration error",
+    "logout_confirm": "Log out of your account?"
+  },
+  "feed": {
+    "title": "Home",
+    "loading": "Loading...",
+    "error": "Error loading posts",
+    "empty": "No posts yet. Be the first!",
+    "trending": "Trending",
+    "search": "Search"
+  },
+  "compose": {
+    "placeholder": "What's happening?",
+    "submit": "Post",
+    "submitting": "Posting...",
+    "error": "Error creating post"
+  },
+  "post": {
+    "delete_confirm": "Delete this post?",
+    "delete_error": "Error deleting post",
+    "time": {
+      "just_now": "just now",
+      "minutes": "m",
+      "hours": "h",
+      "days": "d"
+    }
+  },
+  "profile": {
+    "loading": "Loading...",
+    "not_found": "User not found",
+    "joined": "Joined:",
+    "following": "Following",
+    "followers": "Followers",
+    "posts_count": "posts",
+    "tab_posts": "Posts",
+    "tab_replies": "Replies",
+    "tab_media": "Media",
+    "tab_likes": "Likes",
+    "empty": "No posts yet"
+  }
+}

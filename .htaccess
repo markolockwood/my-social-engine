@@ -1,0 +1,7 @@
+RewriteEngine On
+
+# Все запросы /api/* идут в api/index.php
+RewriteCond %{REQUEST_URI} ^/api/
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^api/(.*)$ api/index.php [QSA,L]

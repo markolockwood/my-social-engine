@@ -1,0 +1,63 @@
+.compose {
+  display: flex;
+  gap: 12px;
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.compose textarea {
+  width: 100%;
+  border: none;
+  outline: none;
+  resize: none;
+  font-size: 20px;
+  font-family: inherit;
+  min-height: 60px;
+  padding: 8px 0;
+  background: transparent;
+  color: var(--text);
+}
+
+.compose textarea::placeholder { color: var(--text-muted); }
+
+.compose-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.compose-icons {
+  display: flex;
+  gap: 12px;
+  color: var(--blue);
+  font-size: 18px;
+}
+
+.compose-icons span { cursor: pointer; opacity: 0.6; }
+.compose-icons span:hover { opacity: 1; }
+
+.char-count {
+  font-size: 14px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.char-count.over-limit { color: #f91880; font-weight: 700; }
+
+.compose-submit {
+  background: var(--blue);
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  padding: 8px 20px;
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.compose-submit:hover:not(:disabled) { background: var(--blue-hover); }
+.compose-submit:disabled { background: var(--blue-faint); cursor: not-allowed; }
+
+.error-text { color: #f91880; font-size: 13px; margin-top: 4px; }

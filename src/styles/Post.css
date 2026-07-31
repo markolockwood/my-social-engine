@@ -1,0 +1,81 @@
+.tweet {
+  display: flex;
+  gap: 12px;
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.15s;
+  position: relative;
+}
+
+.tweet:hover { background: var(--bg-hover); }
+
+.tweet-body { flex: 1; min-width: 0; }
+
+.tweet-head {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+
+.tweet-name {
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.tweet-name:hover { text-decoration: underline; }
+
+.tweet-handle,
+.tweet-dot,
+.tweet-time {
+  color: var(--text-muted);
+  font-size: 15px;
+}
+
+.tweet-delete {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 24px;
+  cursor: pointer;
+  padding: 0 8px;
+  line-height: 1;
+  transition: color 0.15s;
+}
+
+.tweet-delete:hover { color: #f91880; }
+
+.tweet-text {
+  margin-top: 2px;
+  font-size: 15px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.tweet-actions {
+  display: flex;
+  justify-content: space-between;
+  max-width: 425px;
+  margin-top: 12px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.tweet-action {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.15s;
+  cursor: pointer;
+}
+
+.tweet-action:hover          { color: var(--blue);  background: var(--blue-dim); }
+.tweet-action.retweet:hover  { color: #00ba7c; background: rgba(0, 186, 124, 0.1); }
+.tweet-action.like:hover     { color: #f91880; background: rgba(249, 24, 128, 0.1); }
+.tweet-action.liked          { color: #f91880; }
+.tweet-action span:first-child { font-size: 16px; }
