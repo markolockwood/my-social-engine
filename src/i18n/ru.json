@@ -70,7 +70,27 @@
     "tab_replies": "Ответы",
     "tab_media": "Медиа",
     "tab_likes": "Нравится",
-    "empty": "У этого пользователя пока нет постов"
+    "empty": "У этого пользователя пока нет постов",
+    "empty_replies": "Нет ответов",
+    "reply_to": "Ответ для",
+    "you_retweeted": "Вы ретвитнули",
+    "retweeted": "Ретвитнул"
+  },
+  "post_page": {
+    "loading": "Загрузка...",
+    "not_found": "Пост не найден",
+    "back": "Назад",
+    "comments_title": "Ответы",
+    "comment_placeholder": "Напишите ответ",
+    "comment_submit": "Ответить",
+    "comment_submitting": "Отправка...",
+    "comment_error": "Ошибка при отправке ответа",
+    "comment_delete_confirm": "Удалить этот ответ?",
+    "comment_delete_error": "Ошибка при удалении ответа",
+    "no_comments": "Ответов пока нет",
+    "retweet": "Ретвитнуть",
+    "unretweet": "Отменить ретвит",
+    "retweet_error": "Ошибка при ретвите"
   },
   "edit_profile": {
     "button": "Редактировать профиль",

@@ -1,0 +1,60 @@
+.quoted-post {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  margin-top: 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.quoted-post:hover {
+  background: var(--bg-hover);
+}
+
+.quoted-post-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.quoted-post-name {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.quoted-post-name:hover {
+  text-decoration: underline;
+}
+
+.quoted-post-handle,
+.quoted-post-dot,
+.quoted-post-time {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.quoted-post-replying {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.quoted-post-reply-link {
+  color: var(--blue);
+  text-decoration: none;
+}
+
+.quoted-post-reply-link:hover {
+  text-decoration: underline;
+}
+
+.quoted-post-content {
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}

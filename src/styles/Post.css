@@ -78,4 +78,5 @@
 .tweet-action.retweet:hover  { color: #00ba7c; background: rgba(0, 186, 124, 0.1); }
 .tweet-action.like:hover     { color: #f91880; background: rgba(249, 24, 128, 0.1); }
 .tweet-action.liked          { color: #f91880; }
+.tweet-action.retweeted      { color: #00ba7c; }
 .tweet-action span:first-child { font-size: 16px; }

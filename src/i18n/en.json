@@ -70,7 +70,27 @@
     "tab_replies": "Replies",
     "tab_media": "Media",
     "tab_likes": "Likes",
-    "empty": "No posts yet"
+    "empty": "No posts yet",
+    "empty_replies": "No replies yet",
+    "reply_to": "Replying to",
+    "you_retweeted": "You retweeted",
+    "retweeted": "Retweeted"
+  },
+  "post_page": {
+    "loading": "Loading...",
+    "not_found": "Post not found",
+    "back": "Back",
+    "comments_title": "Replies",
+    "comment_placeholder": "Tweet your reply",
+    "comment_submit": "Reply",
+    "comment_submitting": "Replying...",
+    "comment_error": "Failed to post reply",
+    "comment_delete_confirm": "Delete this reply?",
+    "comment_delete_error": "Failed to delete reply",
+    "no_comments": "No replies yet",
+    "retweet": "Retweet",
+    "unretweet": "Undo retweet",
+    "retweet_error": "Failed to retweet"
   },
   "edit_profile": {
     "button": "Edit profile",

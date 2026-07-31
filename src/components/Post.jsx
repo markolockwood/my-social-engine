@@ -1,13 +1,22 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { postsAPI } from '../api/api';
 import { useAuth } from '../context/AuthContext';
+import ComposeReplyModal from './ComposeReplyModal';
+import QuotedPost from './QuotedPost';
 import '../styles/Post.css';
 
-const Post = ({ post, onDelete }) => {
-  const [isLiked,     setIsLiked]     = useState(post.is_liked || false);
-  const [likesCount,  setLikesCount]  = useState(parseInt(post.likes_count) || 0);
-  const [loading,     setLoading]     = useState(false);
+const Post = ({ post, onDelete, onReplyCreated, quotedPost }) => {
+  const navigate = useNavigate();
   const { user, t } = useAuth();
+
+  const [isLiked,      setIsLiked]      = useState(post.is_liked      || false);
+  const [likesCount,   setLikesCount]   = useState(parseInt(post.likes_count)    || 0);
+  const [isRetweeted,  setIsRetweeted]  = useState(post.is_retweeted  || false);
+  const [retweetsCount,setRetweetsCount]= useState(parseInt(post.retweets_count) || 0);
+  const [commentsCount,setCommentsCount]= useState(parseInt(post.comments_count) || 0);
+  const [loading,      setLoading]      = useState(false);
+  const [replyModalOpen, setReplyModalOpen] = useState(false);
 
   const handleLike = async (e) => {
     e.stopPropagation();
@@ -17,14 +26,35 @@ const Post = ({ post, onDelete }) => {
       if (isLiked) {
         await postsAPI.unlike(post.id);
         setIsLiked(false);
-        setLikesCount((prev) => prev - 1);
+        setLikesCount((n) => n - 1);
       } else {
         await postsAPI.like(post.id);
         setIsLiked(true);
-        setLikesCount((prev) => prev + 1);
+        setLikesCount((n) => n + 1);
       }
     } catch (err) {
-      console.error('Error toggling like:', err);
+      console.error('like error', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRetweet = async (e) => {
+    e.stopPropagation();
+    if (!user || loading) return;
+    setLoading(true);
+    try {
+      if (isRetweeted) {
+        await postsAPI.unretweet(post.id);
+        setIsRetweeted(false);
+        setRetweetsCount((n) => n - 1);
+      } else {
+        await postsAPI.retweet(post.id);
+        setIsRetweeted(true);
+        setRetweetsCount((n) => n + 1);
+      }
+    } catch (err) {
+      console.error('retweet error', err);
     } finally {
       setLoading(false);
     }
@@ -36,15 +66,15 @@ const Post = ({ post, onDelete }) => {
     try {
       await postsAPI.delete(post.id);
       if (onDelete) onDelete(post.id);
-    } catch (err) {
+    } catch {
       alert(t('post.delete_error'));
     }
   };
 
   const formatTime = (timestamp) => {
-    const date    = new Date(timestamp);
-    const now     = new Date();
-    const diffMs  = now - date;
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs    = now - date;
     const diffMins  = Math.floor(diffMs / 60000);
     const diffHours = Math.floor(diffMs / 3600000);
     const diffDays  = Math.floor(diffMs / 86400000);
@@ -53,22 +83,32 @@ const Post = ({ post, onDelete }) => {
     if (diffMins  < 60) return `${diffMins}${t('post.time.minutes')}`;
     if (diffHours < 24) return `${diffHours}${t('post.time.hours')}`;
     if (diffDays  < 7)  return `${diffDays}${t('post.time.days')}`;
-
     return date.toLocaleDateString(t('locale'), { day: 'numeric', month: 'short' });
+  };
+
+  const handleReplySuccess = (newReply) => {
+    setCommentsCount((n) => n + 1);
+    if (onReplyCreated) onReplyCreated(newReply);
   };
 
   const isOwnPost = user && user.id === post.user_id;
 
   return (
-    <article className="tweet">
+    <article className="tweet" onClick={() => navigate(`/post/${post.id}`)}>
       <img
         src={post.avatar_url || `https://i.pravatar.cc/150?u=${post.username}`}
         alt="Avatar"
         className="avatar avatar-md"
+        onClick={(e) => { e.stopPropagation(); navigate(`/profile/${post.username}`); }}
       />
       <div className="tweet-body">
         <div className="tweet-head">
-          <span className="tweet-name">{post.display_name}</span>
+          <span
+            className="tweet-name"
+            onClick={(e) => { e.stopPropagation(); navigate(`/profile/${post.username}`); }}
+          >
+            {post.display_name}
+          </span>
           <span className="tweet-handle">@{post.username}</span>
           <span className="tweet-dot">·</span>
           <span className="tweet-time">{formatTime(post.created_at)}</span>
@@ -77,12 +117,16 @@ const Post = ({ post, onDelete }) => {
           )}
         </div>
         <div className="tweet-text">{post.content}</div>
+        {quotedPost && <QuotedPost post={quotedPost} />}
         <div className="tweet-actions">
-          <div className="tweet-action">
-            <span>💬</span><span>{post.comments_count || 0}</span>
+          <div className="tweet-action" onClick={(e) => { e.stopPropagation(); setReplyModalOpen(true); }}>
+            <span>💬</span><span>{commentsCount || 0}</span>
           </div>
-          <div className="tweet-action retweet">
-            <span>🔄</span><span>0</span>
+          <div
+            className={`tweet-action retweet ${isRetweeted ? 'retweeted' : ''}`}
+            onClick={handleRetweet}
+          >
+            <span>🔄</span><span>{retweetsCount}</span>
           </div>
           <div
             className={`tweet-action like ${isLiked ? 'liked' : ''}`}
@@ -97,6 +141,14 @@ const Post = ({ post, onDelete }) => {
           </div>
         </div>
       </div>
+
+      {replyModalOpen && (
+        <ComposeReplyModal
+          post={post}
+          onClose={() => setReplyModalOpen(false)}
+          onSuccess={handleReplySuccess}
+        />
+      )}
     </article>
   );
 };

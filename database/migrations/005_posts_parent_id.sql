@@ -1,0 +1,2 @@
+ALTER TABLE posts ADD COLUMN IF NOT EXISTS parent_id INTEGER REFERENCES posts(id) ON DELETE CASCADE;
+CREATE INDEX IF NOT EXISTS idx_posts_parent_id ON posts(parent_id);

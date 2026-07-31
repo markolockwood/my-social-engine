@@ -1,78 +1,152 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
-import { usersAPI } from '../api/api';
+import { useParams, Link } from 'react-router-dom';
+import { usersAPI, postsAPI } from '../api/api';
 import { useAuth } from '../context/AuthContext';
 import Sidebar from '../components/Sidebar';
 import MobileNav from '../components/MobileNav';
 import Post from '../components/Post';
+import QuotedPost from '../components/QuotedPost';
 import EditProfileModal from '../components/EditProfileModal';
 import '../styles/Profile.css';
 
+const PostWithMeta = ({ post, currentUsername, onDelete }) => {
+  const { t } = useAuth();
+  const [parentPost, setParentPost] = useState(null);
+
+  useEffect(() => {
+    if (post.is_quick_reply && post.parent_id) {
+      postsAPI.getById(post.parent_id).then(res => {
+        setParentPost(res.data.post);
+      }).catch(() => setParentPost(null));
+    }
+  }, [post.id]);
+
+  if (post.is_retweet === '1' || post.is_retweet === true) {
+    return (
+      <div className="post-meta-wrapper">
+        <div className="post-meta-header">
+          <span className="post-meta-icon">🔄</span>
+          <span className="post-meta-text">{currentUsername === post.username ? t('profile.you_retweeted') : t('profile.retweeted')}</span>
+        </div>
+        <Post post={post} onDelete={onDelete} />
+      </div>
+    );
+  }
+
+  if (post.is_quick_reply && post.parent_id) {
+    return (
+      <div className="post-meta-wrapper">
+        <Post post={post} quotedPost={parentPost} onDelete={onDelete} />
+      </div>
+    );
+  }
+
+  return <Post post={post} onDelete={onDelete} />;
+};
+
+const ReplyThread = ({ item, onDelete }) => {
+  const { t } = useAuth();
+  const { reply, parent } = item;
+
+  return (
+    <div className="reply-thread">
+      {parent ? (
+        <div className="reply-thread-parent">
+          <Post post={parent} />
+        </div>
+      ) : (
+        <div className="reply-thread-no-parent">
+          <span className="reply-thread-label">
+            {t('profile.reply_to')}{' '}
+            {reply.parent_username
+              ? <Link to={`/profile/${reply.parent_username}`}>@{reply.parent_username}</Link>
+              : <span>@deleted</span>
+            }
+          </span>
+          <div className="reply-thread-connector" />
+        </div>
+      )}
+      <Post post={reply} onDelete={onDelete} />
+    </div>
+  );
+};
+
 const Profile = () => {
   const { username }  = useParams();
-  const [user, setUser]     = useState(null);
-  const [posts, setPosts]   = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError]   = useState('');
+  const [profileUser, setProfileUser] = useState(null);
+  const [posts,    setPosts]    = useState([]);
+  const [replies,  setReplies]  = useState([]);
+  const [tab,      setTab]      = useState('posts');
+  const [loading,  setLoading]  = useState(true);
+  const [error,    setError]    = useState('');
   const [editOpen, setEditOpen] = useState(false);
   const { user: authUser, updateUser, t } = useAuth();
 
-  const isOwn = authUser && user && authUser.username === user.username;
+  const isOwn = authUser && profileUser && authUser.username === profileUser.username;
 
-  useEffect(() => { loadProfile(); }, [username]);
+  useEffect(() => {
+    setTab('posts');
+    loadProfile();
+  }, [username]);
 
   const loadProfile = async () => {
     try {
       setLoading(true);
-      const [userResponse, postsResponse] = await Promise.all([
+      const [userRes, postsRes] = await Promise.all([
         usersAPI.getByUsername(username),
-        usersAPI.getUserPosts(username)
+        usersAPI.getUserPosts(username),
       ]);
-      setUser(userResponse.data.user);
-      setPosts(postsResponse.data.posts);
-    } catch (err) {
+      setProfileUser(userRes.data.user);
+      setPosts(postsRes.data.posts);
+      setReplies([]);
+    } catch {
       setError(t('profile.not_found'));
     } finally {
       setLoading(false);
     }
   };
 
-  const handlePostDeleted = (postId) => setPosts(posts.filter((p) => p.id !== postId));
+  const handleTabChange = async (next) => {
+    if (next === tab) return;
+    setTab(next);
+    if (next === 'replies' && replies.length === 0) {
+      try {
+        const res = await usersAPI.getUserReplies(username);
+        setReplies(res.data.replies);
+      } catch { setReplies([]); }
+    }
+  };
+
+  const handlePostDeleted   = (id) => setPosts((p) => p.filter((x) => x.id !== id));
+  const handleReplyDeleted  = (id) => setReplies((r) => r.filter((x) => x.reply.id !== id));
 
   const handleProfileSaved = (updatedUser) => {
-    setUser((prev) => ({ ...prev, ...updatedUser }));
+    setProfileUser((prev) => ({ ...prev, ...updatedUser }));
     if (isOwn) updateUser(updatedUser);
   };
 
-  const formatJoined = (ts) =>
-    new Date(ts).toLocaleDateString(t('locale'), { year: 'numeric', month: 'long' });
+  const formatJoined    = (ts)   => new Date(ts).toLocaleDateString(t('locale'), { year: 'numeric', month: 'long' });
+  const formatBirthDate = (date) => date
+    ? new Date(date).toLocaleDateString(t('locale'), { year: 'numeric', month: 'long', day: 'numeric' })
+    : null;
 
-  const formatBirthDate = (date) => {
-    if (!date) return null;
-    return new Date(date).toLocaleDateString(t('locale'), { year: 'numeric', month: 'long', day: 'numeric' });
-  };
+  if (loading) return (
+    <div className="layout">
+      <Sidebar />
+      <main className="main">
+        <div className="loading-container"><div className="loading-spinner">{t('profile.loading')}</div></div>
+      </main>
+      <MobileNav />
+    </div>
+  );
 
-  if (loading) {
-    return (
-      <div className="layout">
-        <Sidebar />
-        <main className="main">
-          <div className="loading-container"><div className="loading-spinner">{t('profile.loading')}</div></div>
-        </main>
-        <MobileNav />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="layout">
-        <Sidebar />
-        <main className="main"><div className="error-container">{error}</div></main>
-        <MobileNav />
-      </div>
-    );
-  }
+  if (error) return (
+    <div className="layout">
+      <Sidebar />
+      <main className="main"><div className="error-container">{error}</div></main>
+      <MobileNav />
+    </div>
+  );
 
   return (
     <div className="layout">
@@ -80,9 +154,9 @@ const Profile = () => {
 
       <main className="main">
         <div className="main-header">
-          <h2>{user.display_name}</h2>
+          <h2>{profileUser.display_name}</h2>
           <div style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: 400 }}>
-            {user.posts_count} {t('profile.posts_count')}
+            {profileUser.posts_count} {t('profile.posts_count')}
           </div>
         </div>
 
@@ -90,7 +164,7 @@ const Profile = () => {
 
         <div className="profile-head">
           <img
-            src={user.avatar_url || `https://i.pravatar.cc/150?u=${user.username}`}
+            src={profileUser.avatar_url || `https://i.pravatar.cc/150?u=${profileUser.username}`}
             alt="Avatar"
             className="profile-avatar"
           />
@@ -101,34 +175,59 @@ const Profile = () => {
             </button>
           )}
 
-          <div className="profile-name">{user.display_name}</div>
-          <div className="profile-handle">@{user.username}</div>
+          <div className="profile-name">{profileUser.display_name}</div>
+          <div className="profile-handle">@{profileUser.username}</div>
 
-          {user.bio && <div className="profile-bio">{user.bio}</div>}
+          {profileUser.bio && <div className="profile-bio">{profileUser.bio}</div>}
 
           <div className="profile-meta">
-            {user.location && <span>📍 {user.location}</span>}
-            {user.birth_date && <span>🎂 {formatBirthDate(user.birth_date)}</span>}
-            <span>📅 {t('profile.joined')} {formatJoined(user.created_at)}</span>
+            {profileUser.location   && <span>📍 {profileUser.location}</span>}
+            {profileUser.birth_date && <span>🎂 {formatBirthDate(profileUser.birth_date)}</span>}
+            <span>📅 {t('profile.joined')} {formatJoined(profileUser.created_at)}</span>
           </div>
 
           <div className="profile-stats">
-            <span><b>{user.following_count}</b> <span>{t('profile.following')}</span></span>
-            <span><b>{user.followers_count}</b> <span>{t('profile.followers')}</span></span>
+            <span><b>{profileUser.following_count}</b> <span>{t('profile.following')}</span></span>
+            <span><b>{profileUser.followers_count}</b> <span>{t('profile.followers')}</span></span>
           </div>
         </div>
 
         <div className="profile-tabs">
-          <div className="profile-tab active">{t('profile.tab_posts')}</div>
-          <div className="profile-tab">{t('profile.tab_replies')}</div>
-          <div className="profile-tab">{t('profile.tab_media')}</div>
-          <div className="profile-tab">{t('profile.tab_likes')}</div>
+          {['posts', 'replies', 'media', 'likes'].map((key) => (
+            <div
+              key={key}
+              className={`profile-tab${tab === key ? ' active' : ''}`}
+              onClick={() => handleTabChange(key)}
+            >
+              {t(`profile.tab_${key}`)}
+            </div>
+          ))}
         </div>
 
-        {posts.length === 0 ? (
-          <div className="empty-state"><p>{t('profile.empty')}</p></div>
-        ) : (
-          posts.map((post) => <Post key={post.id} post={post} onDelete={handlePostDeleted} />)
+        {tab === 'posts' && (
+          posts.length === 0
+            ? <div className="empty-state"><p>{t('profile.empty')}</p></div>
+            : posts
+                .filter((p) => !p.parent_id || p.is_quick_reply === '1' || p.is_quick_reply === true)
+                .map((p) => (
+                  <PostWithMeta key={p.id} post={p} currentUsername={profileUser.username} onDelete={handlePostDeleted} />
+                ))
+        )}
+
+        {tab === 'replies' && (
+          replies.length === 0
+            ? <div className="empty-state"><p>{t('profile.empty_replies')}</p></div>
+            : replies.map((item) => (
+                <ReplyThread
+                  key={item.reply.id}
+                  item={item}
+                  onDelete={handleReplyDeleted}
+                />
+              ))
+        )}
+
+        {(tab === 'media' || tab === 'likes') && (
+          <div className="empty-state"><p>Скоро</p></div>
         )}
       </main>
 
@@ -140,7 +239,7 @@ const Profile = () => {
 
       {editOpen && (
         <EditProfileModal
-          user={user}
+          user={profileUser}
           onClose={() => setEditOpen(false)}
           onSave={handleProfileSaved}
         />

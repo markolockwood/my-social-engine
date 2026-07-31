@@ -42,18 +42,24 @@ export const authAPI = {
 };
 
 export const postsAPI = {
-  getFeed: (limit = 20, offset = 0) => api.get(`/posts?limit=${limit}&offset=${offset}`),
-  create:  (content) => api.post('/posts', { content }),
-  getById: (id)      => api.get(`/posts/${id}`),
-  delete:  (id)      => api.delete(`/posts/${id}`),
-  like:    (id)      => api.post(`/posts/${id}/like`),
-  unlike:  (id)      => api.post(`/posts/${id}/unlike`)
+  getFeed:    (limit = 20, offset = 0) => api.get(`/posts?limit=${limit}&offset=${offset}`),
+  create:     (content, parentId = null, isQuickReply = false) =>
+    api.post('/posts', { content, parent_id: parentId, is_quick_reply: isQuickReply }),
+  getById:    (id) => api.get(`/posts/${id}`),
+  delete:     (id) => api.delete(`/posts/${id}`),
+  like:       (id) => api.post(`/posts/${id}/like`),
+  unlike:     (id) => api.post(`/posts/${id}/unlike`),
+  retweet:    (id) => api.post(`/posts/${id}/retweet`),
+  unretweet:  (id) => api.post(`/posts/${id}/unretweet`),
+  getReplies: (id) => api.get(`/posts/${id}/replies`),
 };
 
 export const usersAPI = {
-  getByUsername: (username)                      => api.get(`/users/${username}`),
-  getUserPosts:  (username, limit = 20, offset = 0) =>
-    api.get(`/users/${username}/posts?limit=${limit}&offset=${offset}`)
+  getByUsername:  (username)                         => api.get(`/users/${username}`),
+  getUserPosts:   (username, limit = 20, offset = 0) =>
+    api.get(`/users/${username}/posts?limit=${limit}&offset=${offset}`),
+  getUserReplies: (username, limit = 20, offset = 0) =>
+    api.get(`/users/${username}/replies?limit=${limit}&offset=${offset}`),
 };
 
 export default api;

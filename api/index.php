@@ -140,8 +140,11 @@ try {
     if ($path === '/posts' && $requestMethod === 'POST') {
         $authUser = requireAuth();
 
+        $parentId = isset($input['parent_id']) ? (int)$input['parent_id'] : null;
+        $isQuickReply = isset($input['is_quick_reply']) && $input['is_quick_reply'] ? true : false;
+
         $post = new Post();
-        $postId = $post->create($authUser['userId'], $input['content'] ?? '');
+        $postId = $post->create($authUser['userId'], $input['content'] ?? '', $parentId, $isQuickReply);
 
         $postData = $post->getById($postId, $authUser['userId']);
 
@@ -193,6 +196,75 @@ try {
         sendResponse(['message' => 'Post unliked successfully']);
     }
 
+    // GET /posts/{id}/replies — ответы на пост (вложенные посты)
+    if (preg_match('#^/posts/(\d+)/replies$#', $path, $matches) && $requestMethod === 'GET') {
+        $postId = $matches[1];
+        $authUser = getAuthUser();
+        $userId = $authUser ? $authUser['userId'] : null;
+
+        $post = new Post();
+        $replies = $post->getReplies($postId, $userId);
+
+        sendResponse(['posts' => $replies]);
+    }
+
+    // POST /posts/{id}/retweet — ретвит (требует авторизацию)
+    if (preg_match('#^/posts/(\d+)/retweet$#', $path, $matches) && $requestMethod === 'POST') {
+        $postId = $matches[1];
+        $authUser = requireAuth();
+
+        $post = new Post();
+        $post->retweet($postId, $authUser['userId']);
+
+        sendResponse(['message' => 'Post retweeted successfully']);
+    }
+
+    // POST /posts/{id}/unretweet — убрать ретвит (требует авторизацию)
+    if (preg_match('#^/posts/(\d+)/unretweet$#', $path, $matches) && $requestMethod === 'POST') {
+        $postId = $matches[1];
+        $authUser = requireAuth();
+
+        $post = new Post();
+        $post->unretweet($postId, $authUser['userId']);
+
+        sendResponse(['message' => 'Post unretweeted successfully']);
+    }
+
+    // GET /posts/{id}/comments — список комментариев к посту
+    if (preg_match('#^/posts/(\d+)/comments$#', $path, $matches) && $requestMethod === 'GET') {
+        $postId = $matches[1];
+
+        $post = new Post();
+        $comments = $post->getComments($postId);
+
+        sendResponse(['comments' => $comments]);
+    }
+
+    // POST /posts/{id}/comments — добавить комментарий (требует авторизацию)
+    if (preg_match('#^/posts/(\d+)/comments$#', $path, $matches) && $requestMethod === 'POST') {
+        $postId = $matches[1];
+        $authUser = requireAuth();
+
+        $post = new Post();
+        $commentId = $post->addComment($authUser['userId'], $postId, $input['content'] ?? '');
+
+        $comments = $post->getComments($postId);
+        $newComment = array_values(array_filter($comments, fn($c) => $c['id'] == $commentId))[0];
+
+        sendResponse(['comment' => $newComment], 201);
+    }
+
+    // DELETE /comments/{id} — удалить комментарий (требует авторизацию)
+    if (preg_match('#^/comments/(\d+)$#', $path, $matches) && $requestMethod === 'DELETE') {
+        $commentId = $matches[1];
+        $authUser = requireAuth();
+
+        $post = new Post();
+        $post->deleteComment($commentId, $authUser['userId']);
+
+        sendResponse(['message' => 'Comment deleted successfully']);
+    }
+
     // === USER ROUTES ===
 
     // GET /users/{username} — профиль пользователя по username
@@ -221,6 +293,24 @@ try {
         $posts = $post->getByUserId($userData['id'], $limit, $offset, $currentUserId);
 
         sendResponse(['posts' => $posts]);
+    }
+
+    // GET /users/{username}/replies — ответы пользователя (посты с parent_id)
+    if (preg_match('#^/users/([^/]+)/replies$#', $path, $matches) && $requestMethod === 'GET') {
+        $username = $matches[1];
+        $authUser = getAuthUser();
+        $currentUserId = $authUser ? $authUser['userId'] : null;
+
+        $limit  = isset($_GET['limit'])  ? (int)$_GET['limit']  : 20;
+        $offset = isset($_GET['offset']) ? (int)$_GET['offset'] : 0;
+
+        $user = new User();
+        $userData = $user->getByUsername($username);
+
+        $post = new Post();
+        $replies = $post->getRepliesByUser($userData['id'], $currentUserId, $limit, $offset);
+
+        sendResponse(['replies' => $replies]);
     }
 
     // PATCH /user/theme — сохраняет предпочтение темы пользователя

@@ -5,6 +5,7 @@ import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Profile from './pages/Profile';
+import PostPage from './pages/PostPage';
 import './styles/App.css';
 
 const PrivateRoute = ({ children }) => {
@@ -69,6 +70,14 @@ function App() {
             element={
               <PrivateRoute>
                 <Profile />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/post/:id"
+            element={
+              <PrivateRoute>
+                <PostPage />
               </PrivateRoute>
             }
           />
