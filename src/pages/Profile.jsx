@@ -9,10 +9,18 @@ import QuotedPost from '../components/QuotedPost';
 import EditProfileModal from '../components/EditProfileModal';
 import '../styles/Profile.css';
 
+/**
+ * Вспомогательный компонент для отображения постов с метаданными в табе "Посты"
+ * Обрабатывает 3 типа постов:
+ * 1. Ретвиты - показывает "Вы ретвитнули" сверху
+ * 2. Быстрые ответы (is_quick_reply) - загружает и показывает quoted post
+ * 3. Обычные посты - показывает как есть
+ */
 const PostWithMeta = ({ post, currentUsername, onDelete }) => {
   const { t } = useAuth();
   const [parentPost, setParentPost] = useState(null);
 
+  // Для быстрых ответов загружаем родительский пост (quoted post)
   useEffect(() => {
     if (post.is_quick_reply && post.parent_id) {
       postsAPI.getById(post.parent_id).then(res => {
@@ -21,6 +29,7 @@ const PostWithMeta = ({ post, currentUsername, onDelete }) => {
     }
   }, [post.id]);
 
+  // Ретвит - показываем индикатор "Вы ретвитнули" сверху
   if (post.is_retweet === '1' || post.is_retweet === true) {
     return (
       <div className="post-meta-wrapper">
@@ -33,6 +42,7 @@ const PostWithMeta = ({ post, currentUsername, onDelete }) => {
     );
   }
 
+  // Быстрый ответ - передаём quoted post в компонент Post
   if (post.is_quick_reply && post.parent_id) {
     return (
       <div className="post-meta-wrapper">
@@ -41,9 +51,14 @@ const PostWithMeta = ({ post, currentUsername, onDelete }) => {
     );
   }
 
+  // Обычный пост
   return <Post post={post} onDelete={onDelete} />;
 };
 
+/**
+ * Компонент для отображения ответа с родительским постом в табе "Ответы"
+ * Показывает полный тред: родительский пост → линия → ответ пользователя
+ */
 const ReplyThread = ({ item, onDelete }) => {
   const { t } = useAuth();
   const { reply, parent } = item;

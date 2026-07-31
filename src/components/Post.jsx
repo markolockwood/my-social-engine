@@ -6,6 +6,19 @@ import ComposeReplyModal from './ComposeReplyModal';
 import QuotedPost from './QuotedPost';
 import '../styles/Post.css';
 
+/**
+ * Компонент поста для отображения в ленте/профиле
+ * Поддерживает:
+ * - Обычные посты
+ * - Быстрые ответы с quoted post (цитируемая карточка внутри)
+ * - Ретвиты (с индикатором "Вы ретвитнули")
+ * - Действия: комментирование (💬), ретвит (🔄), лайк (❤️), просмотры (📊), закладки (🔖)
+ *
+ * @param {Object} post - Данные поста
+ * @param {Function} onDelete - Callback после удаления
+ * @param {Function} onReplyCreated - Callback после создания ответа
+ * @param {Object} quotedPost - Родительский пост для быстрых ответов (опционально)
+ */
 const Post = ({ post, onDelete, onReplyCreated, quotedPost }) => {
   const navigate = useNavigate();
   const { user, t } = useAuth();
@@ -117,7 +130,8 @@ const Post = ({ post, onDelete, onReplyCreated, quotedPost }) => {
           )}
         </div>
         <div className="tweet-text">{post.content}</div>
-        {quotedPost && <QuotedPost post={quotedPost} />}
+        {/* Quoted post - цитируемая карточка для быстрых ответов (кликабельна) */}
+        {quotedPost && <QuotedPost post={quotedPost} onClick={(e) => { e.stopPropagation(); navigate(`/post/${quotedPost.id}`); }} />}
         <div className="tweet-actions">
           <div className="tweet-action" onClick={(e) => { e.stopPropagation(); setReplyModalOpen(true); }}>
             <span>💬</span><span>{commentsCount || 0}</span>
@@ -136,8 +150,12 @@ const Post = ({ post, onDelete, onReplyCreated, quotedPost }) => {
             <span>{isLiked ? '❤️' : '🤍'}</span>
             <span>{likesCount}</span>
           </div>
-          <div className="tweet-action">
-            <span>📤</span>
+          <div className="tweet-action tweet-action-views">
+            <span>📊</span>
+            <span>{parseInt(post.views_count) || 0}</span>
+          </div>
+          <div className="tweet-action tweet-action-bookmark">
+            <span>🔖</span>
           </div>
         </div>
       </div>

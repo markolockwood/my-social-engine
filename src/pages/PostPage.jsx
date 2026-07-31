@@ -5,15 +5,25 @@ import { useAuth } from '../context/AuthContext';
 import Sidebar from '../components/Sidebar';
 import MobileNav from '../components/MobileNav';
 import Post from '../components/Post';
+import QuotedPost from '../components/QuotedPost';
 import '../styles/PostPage.css';
 
+/**
+ * Детальная страница поста
+ * Особенности:
+ * - Крупный формат с развёрнутыми метаданными (дата, время, просмотры)
+ * - Если пост является быстрым ответом (is_quick_reply = true), показывается quoted post внутри
+ * - Родительский пост НЕ показывается сверху (в отличие от старой версии)
+ * - Увеличивает счётчик просмотров при загрузке
+ * - Сортировка ответов (UI готов, логика в разработке)
+ */
 const PostPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user, t } = useAuth();
 
   const [post,          setPost]          = useState(null);
-  const [parentPost,    setParentPost]    = useState(null);
+  const [quotedPost,    setQuotedPost]    = useState(null); // Родительский пост для быстрых ответов
   const [replies,       setReplies]       = useState([]);
   const [loading,       setLoading]       = useState(true);
   const [error,         setError]         = useState('');
@@ -24,7 +34,9 @@ const PostPage = () => {
   const [likesCount,    setLikesCount]    = useState(0);
   const [isRetweeted,   setIsRetweeted]   = useState(false);
   const [retweetsCount, setRetweetsCount] = useState(0);
+  const [commentsCount, setCommentsCount] = useState(0);
   const [actionLoading, setActionLoading] = useState(false);
+  const [sortBy,        setSortBy]        = useState('relevant');
   const textareaRef = useRef(null);
 
   useEffect(() => {
@@ -42,15 +54,20 @@ const PostPage = () => {
         setLikesCount(parseInt(p.likes_count) || 0);
         setIsRetweeted(p.is_retweeted || false);
         setRetweetsCount(parseInt(p.retweets_count) || 0);
+        setCommentsCount(parseInt(p.comments_count) || 0);
         setReplies(repliesRes.data.posts);
 
-        if (p.parent_id) {
+        postsAPI.incrementView(id).catch(() => {}); // Увеличиваем счётчик просмотров (не критично при ошибке)
+
+        // Загружаем родительский пост только для быстрых ответов (is_quick_reply = true)
+        // Это будет quoted post внутри твита
+        if (p.parent_id && p.is_quick_reply) {
           try {
             const parentRes = await postsAPI.getById(p.parent_id);
-            setParentPost(parentRes.data.post);
-          } catch { setParentPost(null); }
+            setQuotedPost(parentRes.data.post);
+          } catch { setQuotedPost(null); }
         } else {
-          setParentPost(null);
+          setQuotedPost(null);
         }
       } catch {
         setError(t('post_page.not_found'));
@@ -99,16 +116,6 @@ const PostPage = () => {
     }
   };
 
-  const handleDeletePost = async () => {
-    if (!window.confirm(t('post.delete_confirm'))) return;
-    try {
-      await postsAPI.delete(id);
-      navigate(-1);
-    } catch {
-      alert(t('post.delete_error'));
-    }
-  };
-
   const handleReplySubmit = async () => {
     if (!replyText.trim() || submitting) return;
     setSubmitting(true);
@@ -117,7 +124,7 @@ const PostPage = () => {
       const res = await postsAPI.create(replyText.trim(), parseInt(id));
       setReplies((prev) => [...prev, res.data.post]);
       setReplyText('');
-      setPost((p) => ({ ...p, comments_count: parseInt(p.comments_count) + 1 }));
+      setCommentsCount((n) => n + 1);
     } catch {
       setReplyError(t('post_page.comment_error'));
     } finally {
@@ -127,7 +134,21 @@ const PostPage = () => {
 
   const handleReplyDeleted = (replyId) => {
     setReplies((prev) => prev.filter((r) => r.id !== replyId));
-    setPost((p) => ({ ...p, comments_count: Math.max(0, parseInt(p.comments_count) - 1) }));
+    setCommentsCount((n) => Math.max(0, n - 1));
+  };
+
+  const formatFullDate = (timestamp) => {
+    const date = new Date(timestamp);
+    const time = date.toLocaleTimeString(t('locale'), { hour: 'numeric', minute: '2-digit', hour12: true });
+    const dateStr = date.toLocaleDateString(t('locale'), { month: 'short', day: 'numeric', year: 'numeric' });
+    return `${time} · ${dateStr}`;
+  };
+
+  const formatNumber = (num) => {
+    const n = parseInt(num) || 0;
+    if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+    if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+    return n.toString();
   };
 
   if (loading) {
@@ -154,92 +175,80 @@ const PostPage = () => {
     );
   }
 
-  const isOwnPost = user && post && user.id === post.user_id;
-
   return (
     <div className="layout">
       <Sidebar />
+
       <main className="main">
-        <div className="pp-header">
-          <button className="pp-back" onClick={() => navigate(-1)} aria-label="Back">←</button>
-          <span className="pp-header-title">Твит</span>
+        <div className="main-header">
+          <button className="back-btn" onClick={() => navigate(-1)}>←</button>
+          <h2>{t('post_page.back')}</h2>
         </div>
 
-        {parentPost && (
-          <div className="pp-parent-post">
-            <div className="pp-parent-thread-line" />
-            <div className="pp-parent-content">
-              <img
-                src={parentPost.avatar_url || `https://i.pravatar.cc/150?u=${parentPost.username}`}
-                alt="Avatar"
-                className="avatar avatar-sm pp-parent-avatar"
-              />
-              <div className="pp-parent-text-col">
-                <div className="pp-parent-meta">
-                  <span className="pp-parent-name">{parentPost.display_name}</span>
-                  <span className="pp-parent-handle"> @{parentPost.username}</span>
-                </div>
-                <p className="pp-parent-body">{parentPost.content}</p>
-              </div>
-            </div>
-            <div className="pp-replying-to">
-              Replying to <Link to={`/profile/${parentPost.username}`}>@{parentPost.username}</Link>
+        <div className="pp-detail">
+          <div className="pp-detail-header">
+            <img
+              src={post.avatar_url || `https://i.pravatar.cc/150?u=${post.username}`}
+              alt="Avatar"
+              className="avatar avatar-md"
+              onClick={() => navigate(`/profile/${post.username}`)}
+            />
+            <div className="pp-detail-author">
+              <Link to={`/profile/${post.username}`} className="pp-detail-name">{post.display_name}</Link>
+              <span className="pp-detail-handle">@{post.username}</span>
             </div>
           </div>
-        )}
 
-        <article className="pp-post">
-          <div className="pp-post-top">
-            <Link to={`/profile/${post.username}`} className="pp-avatar-link">
-              <img
-                src={post.avatar_url || `https://i.pravatar.cc/150?u=${post.username}`}
-                alt="Avatar"
-                className="avatar avatar-md"
-              />
-            </Link>
-            <div className="pp-post-meta">
-              <Link to={`/profile/${post.username}`} className="pp-name">{post.display_name}</Link>
-              <span className="pp-handle">@{post.username}</span>
-            </div>
-            {isOwnPost && (
-              <button className="pp-delete" onClick={handleDeletePost} title="Delete">×</button>
-            )}
-          </div>
+          <div className="pp-detail-content">{post.content}</div>
 
-          <p className="pp-content">{post.content}</p>
-
-          <div className="pp-timestamp">
-            {new Date(post.created_at).toLocaleString(t('locale'), {
-              hour: '2-digit', minute: '2-digit',
-              day: 'numeric', month: 'long', year: 'numeric',
-            })}
-          </div>
-
-          {(retweetsCount > 0 || likesCount > 0) && (
-            <div className="pp-stats">
-              {retweetsCount > 0 && <span><b>{retweetsCount}</b> Retweets</span>}
-              {likesCount    > 0 && <span><b>{likesCount}</b> Likes</span>}
+          {quotedPost && (
+            <div style={{ marginBottom: '8px' }}>
+              <QuotedPost post={quotedPost} onClick={() => navigate(`/post/${quotedPost.id}`)} />
             </div>
           )}
 
-          <div className="pp-actions">
-            <button className="pp-action" onClick={() => textareaRef.current?.focus()} aria-label="Reply">
-              <span className="pp-action-icon">💬</span>
-            </button>
-            <button
-              className={`pp-action pp-action-retweet ${isRetweeted ? 'active' : ''}`}
+          <div className="pp-detail-meta">
+            <span>{formatFullDate(post.created_at)}</span>
+            <span className="pp-detail-dot">·</span>
+            <span><b>{formatNumber(post.views_count)}</b> Views</span>
+          </div>
+
+          <div className="pp-detail-actions">
+            <div className="pp-detail-action" onClick={handleLike}>
+              <span>💬</span>
+              <span>{formatNumber(commentsCount)}</span>
+            </div>
+            <div
+              className={`pp-detail-action ${isRetweeted ? 'retweeted' : ''}`}
               onClick={handleRetweet}
             >
-              <span className="pp-action-icon">🔄</span>
-            </button>
-            <button
-              className={`pp-action pp-action-like ${isLiked ? 'active' : ''}`}
+              <span>🔄</span>
+              <span>{formatNumber(retweetsCount)}</span>
+            </div>
+            <div
+              className={`pp-detail-action ${isLiked ? 'liked' : ''}`}
               onClick={handleLike}
             >
-              <span className="pp-action-icon">{isLiked ? '❤️' : '🤍'}</span>
-            </button>
+              <span>{isLiked ? '❤️' : '🤍'}</span>
+              <span>{formatNumber(likesCount)}</span>
+            </div>
+            <div className="pp-detail-action">
+              <span>🔖</span>
+              <span>{formatNumber(0)}</span>
+            </div>
           </div>
-        </article>
+
+          <div className="pp-detail-footer">
+            <div>
+              <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="pp-sort-select">
+                <option value="relevant">Relevant</option>
+                <option value="recent">Recent</option>
+                <option value="likes">Likes</option>
+              </select>
+            </div>
+            <span className="pp-detail-quotes-link">View quotes →</span>
+          </div>
+        </div>
 
         {user && (
           <div className="pp-compose">
@@ -251,7 +260,7 @@ const PostPage = () => {
             <div className="pp-compose-body">
               <textarea
                 ref={textareaRef}
-                className="pp-compose-input"
+                className="pp-compose-textarea"
                 placeholder={t('post_page.comment_placeholder')}
                 value={replyText}
                 onChange={(e) => setReplyText(e.target.value)}
@@ -273,15 +282,21 @@ const PostPage = () => {
           </div>
         )}
 
-        <div className="pp-replies">
-          {replies.length === 0
-            ? <div className="pp-no-comments">{t('post_page.no_comments')}</div>
-            : replies.map((reply) => (
-                <Post key={reply.id} post={reply} onDelete={handleReplyDeleted} />
-              ))
-          }
+        <div className="pp-replies-list">
+          {replies.length === 0 ? (
+            <div className="pp-no-replies">{t('post_page.no_comments')}</div>
+          ) : (
+            replies.map((reply) => (
+              <Post key={reply.id} post={reply} onDelete={handleReplyDeleted} />
+            ))
+          )}
         </div>
       </main>
+
+      <aside className="right">
+        <div className="search-box">🔍 {t('feed.search')}</div>
+      </aside>
+
       <MobileNav />
     </div>
   );

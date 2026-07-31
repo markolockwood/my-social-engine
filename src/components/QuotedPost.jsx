@@ -3,7 +3,14 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import '../styles/QuotedPost.css';
 
-const QuotedPost = ({ post }) => {
+/**
+ * Компонент цитируемого поста (quoted post)
+ * Отображается внутри быстрых ответов (is_quick_reply = true) в виде карточки с рамкой
+ *
+ * @param {Object} post - Данные родительского поста
+ * @param {Function} onClick - Обработчик клика (переход к исходному посту)
+ */
+const QuotedPost = ({ post, onClick }) => {
   const { t } = useAuth();
 
   const formatTime = (timestamp) => {
@@ -22,7 +29,7 @@ const QuotedPost = ({ post }) => {
   };
 
   return (
-    <div className="quoted-post">
+    <div className="quoted-post" onClick={onClick} style={{ cursor: onClick ? 'pointer' : 'default' }}>
       <div className="quoted-post-header">
         <img
           src={post.avatar_url || `https://i.pravatar.cc/150?u=${post.username}`}

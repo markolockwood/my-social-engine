@@ -7,6 +7,10 @@ import ComposePost from '../components/ComposePost';
 import Post from '../components/Post';
 import '../styles/Home.css';
 
+/**
+ * Главная страница - лента новостей
+ * Показывает оригинальные посты + быстрые ответы (is_quick_reply = true) с quoted posts
+ */
 const Home = () => {
   const [posts, setPosts]     = useState([]);
   const [loading, setLoading] = useState(true);
@@ -19,7 +23,25 @@ const Home = () => {
     try {
       setLoading(true);
       const response = await postsAPI.getFeed();
-      setPosts(response.data.posts);
+      const postsData = response.data.posts;
+
+      // Загружаем родительские посты для быстрых ответов (is_quick_reply = true)
+      // Они будут отображаться как quoted posts внутри твитов
+      const postsWithParents = await Promise.all(
+        postsData.map(async (post) => {
+          if (post.parent_id && post.is_quick_reply) {
+            try {
+              const parentRes = await postsAPI.getById(post.parent_id);
+              return { ...post, quotedPost: parentRes.data.post };
+            } catch {
+              return post;
+            }
+          }
+          return post;
+        })
+      );
+
+      setPosts(postsWithParents);
     } catch (err) {
       setError(t('feed.error'));
     } finally {
@@ -54,7 +76,7 @@ const Home = () => {
         )}
 
         {!loading && posts.map((post) => (
-          <Post key={post.id} post={post} onDelete={handlePostDeleted} />
+          <Post key={post.id} post={post} quotedPost={post.quotedPost} onDelete={handlePostDeleted} />
         ))}
       </main>
 

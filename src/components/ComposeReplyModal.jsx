@@ -4,6 +4,18 @@ import { postsAPI } from '../api/api';
 import { useAuth } from '../context/AuthContext';
 import '../styles/ComposeReplyModal.css';
 
+/**
+ * Модальное окно для создания быстрого ответа (quick reply)
+ * Открывается при клике на кнопку 💬 в Post компоненте
+ *
+ * Создаёт ответ с is_quick_reply = true, который:
+ * - Отображается в табе "Посты" автора с цитируемой карточкой родителя
+ * - Показывается в ленте новостей
+ *
+ * @param {Object} post - Пост на который отвечаем
+ * @param {Function} onClose - Закрыть модал
+ * @param {Function} onSuccess - Callback после создания ответа
+ */
 const ComposeReplyModal = ({ post, onClose, onSuccess }) => {
   const { user, t } = useAuth();
   const [text, setText] = useState('');

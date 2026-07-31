@@ -52,6 +52,7 @@ export const postsAPI = {
   retweet:    (id) => api.post(`/posts/${id}/retweet`),
   unretweet:  (id) => api.post(`/posts/${id}/unretweet`),
   getReplies: (id) => api.get(`/posts/${id}/replies`),
+  incrementView: (id) => api.post(`/posts/${id}/view`),
 };
 
 export const usersAPI = {

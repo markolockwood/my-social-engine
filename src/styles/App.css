@@ -64,13 +64,17 @@ a { text-decoration: none; color: inherit; }
   background: var(--header-bg);
   backdrop-filter: blur(6px);
   border-bottom: 1px solid var(--border);
-  padding: 16px;
+  padding: 8px 16px;
   z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .main-header h2 {
   font-size: 20px;
   font-weight: 800;
+  margin: 0;
 }
 
 /* ===== Правая колонка ===== */

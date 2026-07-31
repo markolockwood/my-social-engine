@@ -230,6 +230,16 @@ try {
         sendResponse(['message' => 'Post unretweeted successfully']);
     }
 
+    // POST /posts/{id}/view — увеличить счётчик просмотров
+    if (preg_match('#^/posts/(\d+)/view$#', $path, $matches) && $requestMethod === 'POST') {
+        $postId = $matches[1];
+
+        $post = new Post();
+        $post->incrementViews($postId);
+
+        sendResponse(['message' => 'View counted']);
+    }
+
     // GET /posts/{id}/comments — список комментариев к посту
     if (preg_match('#^/posts/(\d+)/comments$#', $path, $matches) && $requestMethod === 'GET') {
         $postId = $matches[1];
