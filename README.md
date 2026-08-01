@@ -3,7 +3,7 @@
 Готовый скрипт социальной сети в стиле Twitter на React, PHP 8.0 и PostgreSQL. Разворачивается на любом локальном или боевом сервере с Apache. На данный момент установщика нет, всё полностью вручную.
 
 ## Changelog
-[Changelog](changelog.md)
+[Changelog](CHANGELOG.md)
 
 ## Возможности
 
