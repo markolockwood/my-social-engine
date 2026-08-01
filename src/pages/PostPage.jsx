@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { postsAPI } from '../api/api';
 import { useAuth } from '../context/AuthContext';
@@ -6,6 +6,9 @@ import Sidebar from '../components/Sidebar';
 import MobileNav from '../components/MobileNav';
 import Post from '../components/Post';
 import QuotedPost from '../components/QuotedPost';
+import PostImages from '../components/PostImages';
+import ComposeReplyModal from '../components/ComposeReplyModal';
+import ComposeWidget from '../components/ComposeWidget';
 import '../styles/PostPage.css';
 
 /**
@@ -27,17 +30,12 @@ const PostPage = () => {
   const [replies,       setReplies]       = useState([]);
   const [loading,       setLoading]       = useState(true);
   const [error,         setError]         = useState('');
-  const [replyText,     setReplyText]     = useState('');
-  const [submitting,    setSubmitting]    = useState(false);
-  const [replyError,    setReplyError]    = useState('');
+  const [replyModalOpen, setReplyModalOpen] = useState(false);
+  const [sortBy,        setSortBy]        = useState('relevant');
   const [isLiked,       setIsLiked]       = useState(false);
   const [likesCount,    setLikesCount]    = useState(0);
-  const [isRetweeted,   setIsRetweeted]   = useState(false);
-  const [retweetsCount, setRetweetsCount] = useState(0);
   const [commentsCount, setCommentsCount] = useState(0);
   const [actionLoading, setActionLoading] = useState(false);
-  const [sortBy,        setSortBy]        = useState('relevant');
-  const textareaRef = useRef(null);
 
   useEffect(() => {
     setLoading(true);
@@ -52,8 +50,6 @@ const PostPage = () => {
         setPost(p);
         setIsLiked(p.is_liked || false);
         setLikesCount(parseInt(p.likes_count) || 0);
-        setIsRetweeted(p.is_retweeted || false);
-        setRetweetsCount(parseInt(p.retweets_count) || 0);
         setCommentsCount(parseInt(p.comments_count) || 0);
         setReplies(repliesRes.data.posts);
 
@@ -78,6 +74,23 @@ const PostPage = () => {
     load();
   }, [id]);
 
+  useEffect(() => {
+    if (!id) return;
+    const poll = async () => {
+      try {
+        const res = await postsAPI.getReplies(id);
+        const fresh = res.data.posts || [];
+        setReplies(prev => {
+          const existingIds = new Set(prev.map(r => r.id));
+          const added = fresh.filter(r => !existingIds.has(r.id));
+          return added.length > 0 ? [...prev, ...added] : prev;
+        });
+      } catch {}
+    };
+    const interval = setInterval(poll, 20000);
+    return () => clearInterval(interval);
+  }, [id]);
+
   const handleLike = async () => {
     if (!user || actionLoading) return;
     setActionLoading(true);
@@ -93,42 +106,6 @@ const PostPage = () => {
       }
     } finally {
       setActionLoading(false);
-    }
-  };
-
-  const handleRetweet = async () => {
-    if (!user || actionLoading) return;
-    setActionLoading(true);
-    try {
-      if (isRetweeted) {
-        await postsAPI.unretweet(id);
-        setIsRetweeted(false);
-        setRetweetsCount((n) => n - 1);
-      } else {
-        await postsAPI.retweet(id);
-        setIsRetweeted(true);
-        setRetweetsCount((n) => n + 1);
-      }
-    } catch {
-      alert(t('post_page.retweet_error'));
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleReplySubmit = async () => {
-    if (!replyText.trim() || submitting) return;
-    setSubmitting(true);
-    setReplyError('');
-    try {
-      const res = await postsAPI.create(replyText.trim(), parseInt(id));
-      setReplies((prev) => [...prev, res.data.post]);
-      setReplyText('');
-      setCommentsCount((n) => n + 1);
-    } catch {
-      setReplyError(t('post_page.comment_error'));
-    } finally {
-      setSubmitting(false);
     }
   };
 
@@ -201,6 +178,9 @@ const PostPage = () => {
 
           <div className="pp-detail-content">{post.content}</div>
 
+          {/* Изображения поста */}
+          {post.images && <PostImages images={post.images} post={post} />}
+
           {quotedPost && (
             <div style={{ marginBottom: '8px' }}>
               <QuotedPost post={quotedPost} onClick={() => navigate(`/post/${quotedPost.id}`)} />
@@ -214,16 +194,13 @@ const PostPage = () => {
           </div>
 
           <div className="pp-detail-actions">
-            <div className="pp-detail-action" onClick={handleLike}>
+            <div
+              className="pp-detail-action"
+              onClick={() => user && setReplyModalOpen(true)}
+              style={{ cursor: user ? 'pointer' : 'default' }}
+            >
               <span>💬</span>
               <span>{formatNumber(commentsCount)}</span>
-            </div>
-            <div
-              className={`pp-detail-action ${isRetweeted ? 'retweeted' : ''}`}
-              onClick={handleRetweet}
-            >
-              <span>🔄</span>
-              <span>{formatNumber(retweetsCount)}</span>
             </div>
             <div
               className={`pp-detail-action ${isLiked ? 'liked' : ''}`}
@@ -250,37 +227,13 @@ const PostPage = () => {
           </div>
         </div>
 
-        {user && (
-          <div className="pp-compose">
-            <img
-              src={user.avatar_url || `https://i.pravatar.cc/150?u=${user.username}`}
-              alt="Your avatar"
-              className="avatar avatar-md"
-            />
-            <div className="pp-compose-body">
-              <textarea
-                ref={textareaRef}
-                className="pp-compose-textarea"
-                placeholder={t('post_page.comment_placeholder')}
-                value={replyText}
-                onChange={(e) => setReplyText(e.target.value)}
-                maxLength={280}
-                rows={2}
-              />
-              {replyError && <div className="pp-compose-error">{replyError}</div>}
-              <div className="pp-compose-footer">
-                <span className="pp-compose-count">{replyText.length}/280</span>
-                <button
-                  className="pp-compose-btn"
-                  onClick={handleReplySubmit}
-                  disabled={!replyText.trim() || submitting}
-                >
-                  {submitting ? t('post_page.comment_submitting') : t('post_page.comment_submit')}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        <ComposeWidget
+          parentPost={post}
+          onSuccess={(reply) => {
+            setReplies(prev => [...prev, reply]);
+            setCommentsCount(n => n + 1);
+          }}
+        />
 
         <div className="pp-replies-list">
           {replies.length === 0 ? (
@@ -298,6 +251,18 @@ const PostPage = () => {
       </aside>
 
       <MobileNav />
+
+      {replyModalOpen && post && (
+        <ComposeReplyModal
+          post={post}
+          onClose={() => setReplyModalOpen(false)}
+          onSuccess={(newReply) => {
+            setReplies(prev => [...prev, newReply]);
+            setCommentsCount(n => n + 1);
+            setReplyModalOpen(false);
+          }}
+        />
+      )}
     </div>
   );
 };

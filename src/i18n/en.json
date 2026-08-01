@@ -88,6 +88,10 @@
     "comment_delete_confirm": "Delete this reply?",
     "comment_delete_error": "Failed to delete reply",
     "no_comments": "No replies yet",
+    "views": "views",
+    "comments_count": "replies",
+    "likes_count": "likes",
+    "show_new_posts": "Show {{count}} posts"
     "retweet": "Retweet",
     "unretweet": "Undo retweet",
     "retweet_error": "Failed to retweet"

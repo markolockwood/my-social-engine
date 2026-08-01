@@ -9,7 +9,7 @@ class Post {
 
     /**
      * Базовый SELECT для постов с подсчётами и подзапросами
-     * @param bool $withUserId - если true, добавляет is_liked и is_retweeted для конкретного пользователя
+     * @param bool $withUserId - если true, добавляет is_liked для конкретного пользователя
      * @return string SQL фрагмент SELECT
      */
     private function baseSelect($withUserId = false) {
@@ -26,16 +26,65 @@ class Post {
                     u.avatar_url,
                     (SELECT username FROM posts parent JOIN users pu ON parent.user_id = pu.id WHERE parent.id = p.parent_id) as parent_username,
                     (SELECT COUNT(*) FROM likes    WHERE post_id = p.id) as likes_count,
-                    (SELECT COUNT(*) FROM posts    WHERE parent_id = p.id) as comments_count,
-                    (SELECT COUNT(*) FROM retweets WHERE post_id = p.id) as retweets_count";
+                    (SELECT COUNT(*) FROM posts    WHERE parent_id = p.id) as comments_count";
 
-        // Если передан ID пользователя, добавляем персональные флаги (лайкнул ли, ретвитнул ли)
         if ($withUserId) {
             $sql .= ",
-                    (SELECT COUNT(*) > 0 FROM likes    WHERE post_id = p.id AND user_id = ?) as is_liked,
-                    (SELECT COUNT(*) > 0 FROM retweets WHERE post_id = p.id AND user_id = ?) as is_retweeted";
+                    (SELECT COUNT(*) > 0 FROM likes    WHERE post_id = p.id AND user_id = ?) as is_liked";
         }
         return $sql;
+    }
+
+    /**
+     * Получить изображения для постов
+     * @param array $posts - массив постов
+     * @return array Посты с добавленным полем images
+     */
+    private function attachImages($posts) {
+        if (empty($posts)) return $posts;
+
+        // Собираем все ID постов
+        $postIds = array_column($posts, 'id');
+        if (empty($postIds)) return $posts;
+
+        $placeholders = implode(',', array_fill(0, count($postIds), '?'));
+
+        // Получаем все изображения одним запросом
+        $sql = "SELECT post_id, image_url, display_order
+                FROM post_images
+                WHERE post_id IN ($placeholders)
+                ORDER BY post_id, display_order";
+
+        try {
+            $images = $this->db->query($sql, $postIds)->fetchAll();
+        } catch (Exception $e) {
+            // Если таблица не существует, возвращаем посты без изображений
+            foreach ($posts as &$post) {
+                $post['images'] = '[]';
+            }
+            return $posts;
+        }
+
+        // Группируем изображения по post_id
+        $imagesByPost = [];
+        foreach ($images as $img) {
+            if (!isset($imagesByPost[$img['post_id']])) {
+                $imagesByPost[$img['post_id']] = [];
+            }
+            $imagesByPost[$img['post_id']][] = [
+                'url' => $img['image_url'],
+                'order' => (int)$img['display_order']
+            ];
+        }
+
+        // Добавляем изображения к постам
+        foreach ($posts as &$post) {
+            $post['images'] = isset($imagesByPost[$post['id']])
+                ? json_encode($imagesByPost[$post['id']])
+                : '[]';
+        }
+
+        return $posts;
     }
 
     /**
@@ -44,11 +93,15 @@ class Post {
      * @param string $content - Текст поста (макс. 280 символов)
      * @param int|null $parentId - ID родительского поста (для ответов)
      * @param bool $isQuickReply - TRUE = быстрый ответ с цитатой, FALSE = thread reply
+     * @param array $imageUrls - Массив URL изображений (макс. 4)
      * @return int ID созданного поста
      */
-    public function create($userId, $content, $parentId = null, $isQuickReply = false) {
+    public function create($userId, $content, $parentId = null, $isQuickReply = false, $imageUrls = []) {
         if (empty(trim($content))) throw new Exception("Post content cannot be empty");
         if (strlen($content) > 280)  throw new Exception("Post content cannot exceed 280 characters");
+
+        // Проверка количества изображений
+        if (count($imageUrls) > 4) throw new Exception("Maximum 4 images allowed");
 
         // Проверяем существование родительского поста
         if ($parentId !== null) {
@@ -56,11 +109,24 @@ class Post {
             if (!$exists) throw new Exception("Parent post not found");
         }
 
+        // Создание поста
         $stmt = $this->db->query(
             "INSERT INTO posts (user_id, content, parent_id, is_quick_reply) VALUES (?, ?, ?, ?) RETURNING id",
             [$userId, trim($content), $parentId, $isQuickReply ? 'true' : 'false']
         );
-        return $stmt->fetch()['id'];
+        $postId = $stmt->fetch()['id'];
+
+        // Сохранение изображений
+        if (!empty($imageUrls)) {
+            foreach ($imageUrls as $index => $url) {
+                $this->db->query(
+                    "INSERT INTO post_images (post_id, image_url, display_order) VALUES (?, ?, ?)",
+                    [$postId, $url, $index]
+                );
+            }
+        }
+
+        return $postId;
     }
 
     /**
@@ -74,60 +140,47 @@ class Post {
                   WHERE (p.parent_id IS NULL OR p.is_quick_reply = TRUE)
                   ORDER BY p.created_at DESC LIMIT ? OFFSET ?";
 
-        $params = $userId !== null ? [$userId, $userId, $limit, $offset] : [$limit, $offset];
-        return $this->db->query($sql, $params)->fetchAll();
+        $params = $userId !== null ? [$userId, $limit, $offset] : [$limit, $offset];
+        $posts = $this->db->query($sql, $params)->fetchAll();
+        return $this->attachImages($posts);
     }
 
     /**
      * Получить посты пользователя для таба "Посты" в профиле
-     * UNION оригинальных постов, быстрых ответов, thread replies И ретвитов
+     * Все посты пользователя (оригинальные + быстрые ответы + thread replies)
      */
     public function getByUserId($userId, $limit = 20, $offset = 0, $currentUserId = null) {
-        // Получаем все посты пользователя (оригинальные + быстрые ответы + thread replies)
-        $postsSql = $this->baseSelect($currentUserId !== null);
-        $postsSql .= ", NULL as retweeted_at, FALSE as is_retweet
-                      FROM posts p JOIN users u ON p.user_id = u.id
-                      WHERE p.user_id = ?";
-
-        // Получаем ретвиты пользователя (показываем сам ретвитнутый пост с меткой)
-        $retweetsSql = $this->baseSelect($currentUserId !== null);
-        $retweetsSql .= ", r.created_at as retweeted_at, TRUE as is_retweet
-                         FROM retweets r
-                         JOIN posts p ON r.post_id = p.id
-                         JOIN users u ON p.user_id = u.id
-                         WHERE r.user_id = ?";
-
-        // Объединяем и сортируем по времени создания (или времени ретвита)
-        $sql = "SELECT * FROM (
-                    ({$postsSql})
-                    UNION ALL
-                    ({$retweetsSql})
-                ) combined
-                ORDER BY COALESCE(retweeted_at, created_at) DESC
-                LIMIT ? OFFSET ?";
+        $sql = $this->baseSelect($currentUserId !== null);
+        $sql .= " FROM posts p JOIN users u ON p.user_id = u.id
+                  WHERE p.user_id = ?
+                  ORDER BY p.created_at DESC
+                  LIMIT ? OFFSET ?";
 
         $params = $currentUserId !== null
-            ? [$currentUserId, $currentUserId, $userId, $currentUserId, $currentUserId, $userId, $limit, $offset]
-            : [$userId, $userId, $limit, $offset];
+            ? [$currentUserId, $userId, $limit, $offset]
+            : [$userId, $limit, $offset];
 
-        return $this->db->query($sql, $params)->fetchAll();
+        $posts = $this->db->query($sql, $params)->fetchAll();
+        return $this->attachImages($posts);
     }
 
     /**
      * Получить пост по ID
      * @param int $postId - ID поста
-     * @param int|null $userId - ID текущего пользователя (для is_liked, is_retweeted)
+     * @param int|null $userId - ID текущего пользователя (для is_liked)
      * @return array Данные поста
      */
     public function getById($postId, $userId = null) {
         $sql = $this->baseSelect($userId !== null);
         $sql .= " FROM posts p JOIN users u ON p.user_id = u.id WHERE p.id = ?";
 
-        $params = $userId !== null ? [$userId, $userId, $postId] : [$postId];
+        $params = $userId !== null ? [$userId, $postId] : [$postId];
         $post = $this->db->query($sql, $params)->fetch();
 
         if (!$post) throw new Exception("Post not found");
-        return $post;
+
+        $posts = $this->attachImages([$post]);
+        return $posts[0];
     }
 
     /**
@@ -143,10 +196,11 @@ class Post {
                   ORDER BY p.created_at DESC LIMIT ? OFFSET ?";
 
         $params = $currentUserId !== null
-            ? [$currentUserId, $currentUserId, $userId, $userId, $limit, $offset]
+            ? [$currentUserId, $userId, $userId, $limit, $offset]
             : [$userId, $userId, $limit, $offset];
 
         $replies = $this->db->query($sql, $params)->fetchAll();
+        $replies = $this->attachImages($replies);
 
         // Для каждого ответа загружаем родительский пост (для отображения треда)
         $parentSqlBase = $this->baseSelect(false);
@@ -156,7 +210,11 @@ class Post {
         foreach ($replies as $reply) {
             $parent = null;
             if ($reply['parent_id']) {
-                $parent = $this->db->query($parentSqlBase, [$reply['parent_id']])->fetch() ?: null;
+                $parentData = $this->db->query($parentSqlBase, [$reply['parent_id']])->fetch();
+                if ($parentData) {
+                    $parentWithImages = $this->attachImages([$parentData]);
+                    $parent = $parentWithImages[0];
+                }
             }
             $result[] = ['reply' => $reply, 'parent' => $parent];
         }
@@ -175,19 +233,33 @@ class Post {
                   WHERE p.parent_id = ?
                   ORDER BY p.created_at ASC";
 
-        $params = $userId !== null ? [$userId, $userId, $postId] : [$postId];
-        return $this->db->query($sql, $params)->fetchAll();
+        $params = $userId !== null ? [$userId, $postId] : [$postId];
+        $posts = $this->db->query($sql, $params)->fetchAll();
+        return $this->attachImages($posts);
     }
 
     /**
      * Удалить пост
      * Проверяет права доступа - только автор может удалить свой пост
+     * Удаляет физические файлы изображений
      */
     public function delete($postId, $userId) {
         $post = $this->db->query("SELECT user_id FROM posts WHERE id = ?", [$postId])->fetch();
         if (!$post)                    throw new Exception("Post not found");
         if ($post['user_id'] != $userId) throw new Exception("Unauthorized to delete this post");
 
+        // Получаем список изображений для удаления файлов
+        $images = $this->db->query("SELECT image_url FROM post_images WHERE post_id = ?", [$postId])->fetchAll();
+
+        // Удаляем физические файлы
+        foreach ($images as $image) {
+            $filePath = __DIR__ . '/../../' . $image['image_url'];
+            if (file_exists($filePath)) {
+                unlink($filePath);
+            }
+        }
+
+        // Удаление поста (CASCADE удалит записи из post_images автоматически)
         $this->db->query("DELETE FROM posts WHERE id = ?", [$postId]);
         return true;
     }
@@ -218,26 +290,6 @@ class Post {
      */
     public function unlike($postId, $userId) {
         $this->db->query("DELETE FROM likes WHERE post_id = ? AND user_id = ?", [$postId, $userId]);
-        return true;
-    }
-
-    /**
-     * Ретвитнуть пост
-     * ON CONFLICT DO NOTHING предотвращает дублирование ретвитов
-     */
-    public function retweet($postId, $userId) {
-        $this->db->query(
-            "INSERT INTO retweets (post_id, user_id) VALUES (?, ?) ON CONFLICT DO NOTHING",
-            [$postId, $userId]
-        );
-        return true;
-    }
-
-    /**
-     * Отменить ретвит
-     */
-    public function unretweet($postId, $userId) {
-        $this->db->query("DELETE FROM retweets WHERE post_id = ? AND user_id = ?", [$postId, $userId]);
         return true;
     }
 }

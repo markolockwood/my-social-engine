@@ -2,3 +2,21 @@
   display: flex;
   width: 100%;
 }
+
+.new-posts-btn {
+  display: block;
+  width: 100%;
+  padding: 16px;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  color: var(--blue);
+  font-size: 15px;
+  cursor: pointer;
+  text-align: center;
+  transition: background 0.15s;
+}
+
+.new-posts-btn:hover {
+  background: var(--bg-hover);
+}

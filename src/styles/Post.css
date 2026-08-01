@@ -16,12 +16,18 @@
   display: flex;
   gap: 6px;
   align-items: baseline;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  min-width: 0;
 }
 
 .tweet-name {
   font-weight: 700;
   font-size: 15px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  flex-shrink: 1;
 }
 
 .tweet-name:hover { text-decoration: underline; }
@@ -31,10 +37,21 @@
 .tweet-time {
   color: var(--text-muted);
   font-size: 15px;
+  white-space: nowrap;
+  flex-shrink: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.tweet-dot,
+.tweet-time {
+  flex-shrink: 0;
 }
 
 .tweet-delete {
   margin-left: auto;
+  flex-shrink: 0;
   background: none;
   border: none;
   color: var(--text-muted);

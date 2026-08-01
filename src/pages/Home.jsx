@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { postsAPI } from '../api/api';
 import { useAuth } from '../context/AuthContext';
 import Sidebar from '../components/Sidebar';
@@ -12,9 +12,11 @@ import '../styles/Home.css';
  * Показывает оригинальные посты + быстрые ответы (is_quick_reply = true) с quoted posts
  */
 const Home = () => {
-  const [posts, setPosts]     = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError]     = useState('');
+  const [posts, setPosts]       = useState([]);
+  const [loading, setLoading]   = useState(true);
+  const [error, setError]       = useState('');
+  const [newPosts, setNewPosts] = useState([]);
+  const latestIdRef             = useRef(0);
   const { t } = useAuth();
 
   useEffect(() => { loadPosts(); }, []);
@@ -42,6 +44,7 @@ const Home = () => {
       );
 
       setPosts(postsWithParents);
+      latestIdRef.current = postsWithParents[0]?.id || 0;
     } catch (err) {
       setError(t('feed.error'));
     } finally {
@@ -49,8 +52,42 @@ const Home = () => {
     }
   };
 
-  const handlePostCreated = (newPost) => setPosts([newPost, ...posts]);
-  const handlePostDeleted = (postId)  => setPosts(posts.filter((p) => p.id !== postId));
+  const handlePostCreated = (newPost) => {
+    setPosts(prev => [newPost, ...prev]);
+    latestIdRef.current = Math.max(latestIdRef.current, newPost.id);
+  };
+  const handlePostDeleted = (postId) => setPosts(prev => prev.filter((p) => p.id !== postId));
+
+  const handleShowNewPosts = () => {
+    setPosts(prev => [...newPosts, ...prev]);
+    latestIdRef.current = newPosts[0]?.id || latestIdRef.current;
+    setNewPosts([]);
+  };
+
+  useEffect(() => {
+    const poll = async () => {
+      try {
+        const res = await postsAPI.getFeed();
+        const fetched = res.data.posts;
+        const fresh = fetched.filter(p => p.id > latestIdRef.current);
+        if (fresh.length === 0) return;
+        const enriched = await Promise.all(
+          fresh.map(async (post) => {
+            if (post.parent_id && post.is_quick_reply) {
+              try {
+                const parentRes = await postsAPI.getById(post.parent_id);
+                return { ...post, quotedPost: parentRes.data.post };
+              } catch { return post; }
+            }
+            return post;
+          })
+        );
+        setNewPosts(enriched);
+      } catch {}
+    };
+    const interval = setInterval(poll, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <div className="layout">
@@ -62,6 +99,12 @@ const Home = () => {
         </div>
 
         <ComposePost onPostCreated={handlePostCreated} />
+
+        {newPosts.length > 0 && (
+          <button className="new-posts-btn" onClick={handleShowNewPosts}>
+            {t('post_page.show_new_posts').replace('{{count}}', newPosts.length)}
+          </button>
+        )}
 
         {loading && (
           <div className="loading-container">

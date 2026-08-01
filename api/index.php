@@ -40,12 +40,11 @@ try {
     $router->post('/posts/{id}/like', 'PostController', 'like');
     $router->post('/posts/{id}/unlike', 'PostController', 'unlike');
     $router->get('/posts/{id}/replies', 'PostController', 'replies');
-    $router->post('/posts/{id}/retweet', 'PostController', 'retweet');
-    $router->post('/posts/{id}/unretweet', 'PostController', 'unretweet');
     $router->post('/posts/{id}/view', 'PostController', 'view');
     $router->get('/posts/{id}/comments', 'PostController', 'getComments');
     $router->post('/posts/{id}/comments', 'PostController', 'addComment');
     $router->delete('/comments/{id}', 'PostController', 'deleteComment');
+    $router->post('/upload/post-images', 'PostController', 'uploadPostImages');
 
     // === USER ROUTES ===
     $router->get('/users/{username}', 'UserController', 'profile');

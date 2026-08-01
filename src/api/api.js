@@ -43,16 +43,21 @@ export const authAPI = {
 
 export const postsAPI = {
   getFeed:    (limit = 20, offset = 0) => api.get(`/posts?limit=${limit}&offset=${offset}`),
-  create:     (content, parentId = null, isQuickReply = false) =>
-    api.post('/posts', { content, parent_id: parentId, is_quick_reply: isQuickReply }),
+  create:     (content, imageUrls = [], parentId = null, isQuickReply = false) =>
+    api.post('/posts', { content, image_urls: imageUrls, parent_id: parentId, is_quick_reply: isQuickReply }),
   getById:    (id) => api.get(`/posts/${id}`),
   delete:     (id) => api.delete(`/posts/${id}`),
   like:       (id) => api.post(`/posts/${id}/like`),
   unlike:     (id) => api.post(`/posts/${id}/unlike`),
-  retweet:    (id) => api.post(`/posts/${id}/retweet`),
-  unretweet:  (id) => api.post(`/posts/${id}/unretweet`),
   getReplies: (id) => api.get(`/posts/${id}/replies`),
   incrementView: (id) => api.post(`/posts/${id}/view`),
+  uploadImages: (files) => {
+    const form = new FormData();
+    files.forEach(file => form.append('images[]', file));
+    return api.post('/upload/post-images', form, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  }
 };
 
 export const usersAPI = {

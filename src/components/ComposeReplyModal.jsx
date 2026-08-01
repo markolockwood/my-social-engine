@@ -32,7 +32,7 @@ const ComposeReplyModal = ({ post, onClose, onSuccess }) => {
     setSubmitting(true);
     setError('');
     try {
-      const res = await postsAPI.create(text.trim(), post.id, true);
+      const res = await postsAPI.create(text.trim(), [], post.id, true);
       if (onSuccess) onSuccess(res.data.post);
       onClose();
     } catch {

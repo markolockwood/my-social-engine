@@ -34,9 +34,10 @@ class PostController {
 
         $parentId = isset($input['parent_id']) ? (int)$input['parent_id'] : null;
         $isQuickReply = isset($input['is_quick_reply']) && $input['is_quick_reply'] ? true : false;
+        $imageUrls = isset($input['image_urls']) && is_array($input['image_urls']) ? $input['image_urls'] : [];
 
         $post = new Post();
-        $postId = $post->create($authUser['userId'], $input['content'] ?? '', $parentId, $isQuickReply);
+        $postId = $post->create($authUser['userId'], $input['content'] ?? '', $parentId, $isQuickReply, $imageUrls);
 
         $postData = $post->getById($postId, $authUser['userId']);
 
@@ -106,30 +107,6 @@ class PostController {
     }
 
     /**
-     * POST /posts/{id}/retweet — ретвит
-     */
-    public function retweet($id) {
-        $authUser = AuthMiddleware::requireAuth();
-
-        $post = new Post();
-        $post->retweet($id, $authUser['userId']);
-
-        $this->sendResponse(['message' => 'Post retweeted successfully']);
-    }
-
-    /**
-     * POST /posts/{id}/unretweet — убрать ретвит
-     */
-    public function unretweet($id) {
-        $authUser = AuthMiddleware::requireAuth();
-
-        $post = new Post();
-        $post->unretweet($id, $authUser['userId']);
-
-        $this->sendResponse(['message' => 'Post unretweeted successfully']);
-    }
-
-    /**
      * POST /posts/{id}/view — увеличить счётчик просмотров
      */
     public function view($id) {
@@ -175,6 +152,77 @@ class PostController {
         $post->deleteComment($id, $authUser['userId']);
 
         $this->sendResponse(['message' => 'Comment deleted successfully']);
+    }
+
+    /**
+     * POST /upload/post-images — загрузка изображений для поста (до 4 штук)
+     */
+    public function uploadPostImages() {
+        $authUser = AuthMiddleware::requireAuth();
+
+        if (!isset($_FILES['images']) || empty($_FILES['images']['name'][0])) {
+            http_response_code(400);
+            echo json_encode(['error' => 'No images uploaded']);
+            exit();
+        }
+
+        $files = $_FILES['images'];
+        $fileCount = count($files['name']);
+
+        // Проверка количества файлов (максимум 4)
+        if ($fileCount > 4) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Maximum 4 images allowed']);
+            exit();
+        }
+
+        $allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        $maxSize = 5 * 1024 * 1024; // 5MB
+        $uploadedUrls = [];
+
+        $uploadDir = __DIR__ . '/../../uploads/posts/';
+        if (!is_dir($uploadDir)) {
+            mkdir($uploadDir, 0755, true);
+        }
+
+        // Обработка каждого файла
+        for ($i = 0; $i < $fileCount; $i++) {
+            // Проверка ошибок загрузки
+            if ($files['error'][$i] !== UPLOAD_ERR_OK) {
+                http_response_code(400);
+                echo json_encode(['error' => "Error uploading image " . ($i + 1)]);
+                exit();
+            }
+
+            // Проверка типа файла
+            if (!in_array($files['type'][$i], $allowedTypes)) {
+                http_response_code(400);
+                echo json_encode(['error' => 'Invalid file type. Allowed: JPEG, PNG, GIF, WEBP']);
+                exit();
+            }
+
+            // Проверка размера
+            if ($files['size'][$i] > $maxSize) {
+                http_response_code(400);
+                echo json_encode(['error' => 'File too large (max 5MB)']);
+                exit();
+            }
+
+            // Генерация уникального имени файла
+            $ext = strtolower(pathinfo($files['name'][$i], PATHINFO_EXTENSION));
+            $filename = 'post_img_' . time() . '_' . uniqid() . '.' . $ext;
+
+            // Сохранение файла
+            if (!move_uploaded_file($files['tmp_name'][$i], $uploadDir . $filename)) {
+                http_response_code(500);
+                echo json_encode(['error' => 'Failed to save image ' . ($i + 1)]);
+                exit();
+            }
+
+            $uploadedUrls[] = '/uploads/posts/' . $filename;
+        }
+
+        $this->sendResponse(['urls' => $uploadedUrls], 201);
     }
 
     /**

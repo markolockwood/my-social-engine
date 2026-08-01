@@ -1,0 +1,133 @@
+.compose-widget {
+  display: flex;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.compose-widget-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+
+.compose-widget-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.compose-widget-textarea {
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font-size: 17px;
+  font-family: inherit;
+  width: 100%;
+  resize: none;
+  line-height: 1.5;
+  padding: 6px 0;
+  min-height: 52px;
+}
+
+.compose-widget-textarea::placeholder {
+  color: var(--text-muted);
+}
+
+.compose-widget-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+}
+
+.compose-widget-icons {
+  display: flex;
+  gap: 2px;
+}
+
+.compose-widget-icon-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  color: var(--blue);
+  transition: background 0.15s;
+  padding: 0;
+}
+
+.compose-widget-icon-btn:hover:not(:disabled) {
+  background: var(--blue-dim);
+}
+
+.compose-widget-icon-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.compose-widget-gif {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--blue);
+  border: 2px solid var(--blue);
+  border-radius: 4px;
+  padding: 1px 3px;
+  line-height: 1;
+}
+
+.compose-widget-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.compose-widget-count {
+  font-size: 14px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.compose-widget-count.over {
+  color: #f91880;
+  font-weight: 700;
+}
+
+.compose-widget-btn {
+  background: var(--blue);
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  padding: 8px 20px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.compose-widget-btn:hover:not(:disabled) {
+  background: var(--blue-hover);
+}
+
+.compose-widget-btn:disabled {
+  background: var(--blue-faint);
+  cursor: not-allowed;
+}
+
+.compose-widget-error {
+  color: #f91880;
+  font-size: 13px;
+  margin: 4px 0;
+}

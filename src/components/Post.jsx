@@ -4,6 +4,7 @@ import { postsAPI } from '../api/api';
 import { useAuth } from '../context/AuthContext';
 import ComposeReplyModal from './ComposeReplyModal';
 import QuotedPost from './QuotedPost';
+import PostImages from './PostImages';
 import '../styles/Post.css';
 
 /**
@@ -25,8 +26,6 @@ const Post = ({ post, onDelete, onReplyCreated, quotedPost }) => {
 
   const [isLiked,      setIsLiked]      = useState(post.is_liked      || false);
   const [likesCount,   setLikesCount]   = useState(parseInt(post.likes_count)    || 0);
-  const [isRetweeted,  setIsRetweeted]  = useState(post.is_retweeted  || false);
-  const [retweetsCount,setRetweetsCount]= useState(parseInt(post.retweets_count) || 0);
   const [commentsCount,setCommentsCount]= useState(parseInt(post.comments_count) || 0);
   const [loading,      setLoading]      = useState(false);
   const [replyModalOpen, setReplyModalOpen] = useState(false);
@@ -47,27 +46,6 @@ const Post = ({ post, onDelete, onReplyCreated, quotedPost }) => {
       }
     } catch (err) {
       console.error('like error', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleRetweet = async (e) => {
-    e.stopPropagation();
-    if (!user || loading) return;
-    setLoading(true);
-    try {
-      if (isRetweeted) {
-        await postsAPI.unretweet(post.id);
-        setIsRetweeted(false);
-        setRetweetsCount((n) => n - 1);
-      } else {
-        await postsAPI.retweet(post.id);
-        setIsRetweeted(true);
-        setRetweetsCount((n) => n + 1);
-      }
-    } catch (err) {
-      console.error('retweet error', err);
     } finally {
       setLoading(false);
     }
@@ -130,17 +108,13 @@ const Post = ({ post, onDelete, onReplyCreated, quotedPost }) => {
           )}
         </div>
         <div className="tweet-text">{post.content}</div>
+        {/* Изображения поста */}
+        {post.images && <PostImages images={post.images} post={post} />}
         {/* Quoted post - цитируемая карточка для быстрых ответов (кликабельна) */}
         {quotedPost && <QuotedPost post={quotedPost} onClick={(e) => { e.stopPropagation(); navigate(`/post/${quotedPost.id}`); }} />}
         <div className="tweet-actions">
           <div className="tweet-action" onClick={(e) => { e.stopPropagation(); setReplyModalOpen(true); }}>
             <span>💬</span><span>{commentsCount || 0}</span>
-          </div>
-          <div
-            className={`tweet-action retweet ${isRetweeted ? 'retweeted' : ''}`}
-            onClick={handleRetweet}
-          >
-            <span>🔄</span><span>{retweetsCount}</span>
           </div>
           <div
             className={`tweet-action like ${isLiked ? 'liked' : ''}`}

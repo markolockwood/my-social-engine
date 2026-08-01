@@ -13,7 +13,7 @@
 ## Посты
 
 - `GET /api/posts` — лента постов
-- `POST /api/posts` — создать пост (опционально: `parent_id`, `is_quick_reply`)
+- `POST /api/posts` — создать пост (опционально: `parent_id`, `is_quick_reply`, `image_urls[]`)
 - `GET /api/posts/{id}` — получить пост по ID
 - `DELETE /api/posts/{id}` — удалить пост
 - `GET /api/posts/{id}/replies` — ответы на пост
@@ -25,6 +25,7 @@
 - `GET /api/posts/{id}/comments` — список комментариев
 - `POST /api/posts/{id}/comments` — добавить комментарий
 - `DELETE /api/comments/{id}` — удалить комментарий
+- `POST /api/upload/post-images` — загрузить изображения для поста (до 4 шт, multipart/form-data)
 
 ## Пользователи
 

@@ -35,15 +35,6 @@ CREATE TABLE IF NOT EXISTS likes (
     UNIQUE(user_id, post_id)
 );
 
--- Таблица комментариев
-CREATE TABLE IF NOT EXISTS comments (
-    id SERIAL PRIMARY KEY,
-    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    post_id INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
-    content TEXT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
 -- Таблица подписок
 CREATE TABLE IF NOT EXISTS follows (
     id SERIAL PRIMARY KEY,
@@ -59,7 +50,6 @@ CREATE INDEX IF NOT EXISTS idx_posts_user_id ON posts(user_id);
 CREATE INDEX IF NOT EXISTS idx_posts_created_at ON posts(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_likes_post_id ON likes(post_id);
 CREATE INDEX IF NOT EXISTS idx_likes_user_id ON likes(user_id);
-CREATE INDEX IF NOT EXISTS idx_comments_post_id ON comments(post_id);
 CREATE INDEX IF NOT EXISTS idx_follows_follower ON follows(follower_id);
 CREATE INDEX IF NOT EXISTS idx_follows_following ON follows(following_id);
 

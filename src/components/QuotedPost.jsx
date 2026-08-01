@@ -51,6 +51,20 @@ const QuotedPost = ({ post, onClick }) => {
       )}
 
       <div className="quoted-post-content">{post.content}</div>
+
+      {post.images && post.images.length > 0 && (() => {
+        const imgs = typeof post.images === 'string' ? JSON.parse(post.images) : post.images;
+        const sorted = [...imgs].sort((a, b) => a.order - b.order);
+        return (
+          <div className={`quoted-post-images quoted-post-images-${Math.min(sorted.length, 4)}`}>
+            {sorted.slice(0, 4).map((img, i) => (
+              <div key={i} className="quoted-post-image-item">
+                <img src={img.url} alt={`Image ${i + 1}`} loading="lazy" />
+              </div>
+            ))}
+          </div>
+        );
+      })()}
     </div>
   );
 };

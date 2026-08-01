@@ -52,7 +52,9 @@ class Database {
             return $stmt;
         } catch (PDOException $e) {
             error_log("Query error: " . $e->getMessage());
-            throw new Exception("Query execution failed");
+            error_log("SQL: " . $sql);
+            error_log("Params: " . json_encode($params));
+            throw new Exception("Query execution failed: " . $e->getMessage());
         }
     }
 
