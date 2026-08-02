@@ -36,51 +36,48 @@ class Post {
     }
 
     /**
-     * Получить изображения для постов
+     * Получить медиафайлы для постов
      * @param array $posts - массив постов
-     * @return array Посты с добавленным полем images
+     * @return array Посты с добавленным полем media
      */
-    private function attachImages($posts) {
+    private function attachMedia($posts) {
         if (empty($posts)) return $posts;
 
-        // Собираем все ID постов
         $postIds = array_column($posts, 'id');
         if (empty($postIds)) return $posts;
 
         $placeholders = implode(',', array_fill(0, count($postIds), '?'));
 
-        // Получаем все изображения одним запросом
-        $sql = "SELECT post_id, image_url, display_order
-                FROM post_images
+        $sql = "SELECT post_id, media_url, media_type, display_order, thumb_url
+                FROM post_media
                 WHERE post_id IN ($placeholders)
                 ORDER BY post_id, display_order";
 
         try {
-            $images = $this->db->query($sql, $postIds)->fetchAll();
+            $mediaFiles = $this->db->query($sql, $postIds)->fetchAll();
         } catch (Exception $e) {
-            // Если таблица не существует, возвращаем посты без изображений
             foreach ($posts as &$post) {
-                $post['images'] = '[]';
+                $post['media'] = '[]';
             }
             return $posts;
         }
 
-        // Группируем изображения по post_id
-        $imagesByPost = [];
-        foreach ($images as $img) {
-            if (!isset($imagesByPost[$img['post_id']])) {
-                $imagesByPost[$img['post_id']] = [];
+        $mediaByPost = [];
+        foreach ($mediaFiles as $media) {
+            if (!isset($mediaByPost[$media['post_id']])) {
+                $mediaByPost[$media['post_id']] = [];
             }
-            $imagesByPost[$img['post_id']][] = [
-                'url' => $img['image_url'],
-                'order' => (int)$img['display_order']
+            $mediaByPost[$media['post_id']][] = [
+                'url' => $media['media_url'],
+                'thumb' => $media['thumb_url'],
+                'type' => $media['media_type'],
+                'order' => (int)$media['display_order']
             ];
         }
 
-        // Добавляем изображения к постам
         foreach ($posts as &$post) {
-            $post['images'] = isset($imagesByPost[$post['id']])
-                ? json_encode($imagesByPost[$post['id']])
+            $post['media'] = isset($mediaByPost[$post['id']])
+                ? json_encode($mediaByPost[$post['id']])
                 : '[]';
         }
 
@@ -93,15 +90,15 @@ class Post {
      * @param string $content - Текст поста (макс. 280 символов)
      * @param int|null $parentId - ID родительского поста (для ответов)
      * @param bool $isQuickReply - TRUE = быстрый ответ с цитатой, FALSE = thread reply
-     * @param array $imageUrls - Массив URL изображений (макс. 4)
+     * @param array $mediaFiles - Массив медиафайлов [['url' => '...', 'type' => 'image|gif|video'], ...] (макс. 4)
      * @return int ID созданного поста
      */
-    public function create($userId, $content, $parentId = null, $isQuickReply = false, $imageUrls = []) {
+    public function create($userId, $content, $parentId = null, $isQuickReply = false, $mediaFiles = []) {
         if (empty(trim($content))) throw new Exception("Post content cannot be empty");
         if (strlen($content) > 280)  throw new Exception("Post content cannot exceed 280 characters");
 
-        // Проверка количества изображений
-        if (count($imageUrls) > 4) throw new Exception("Maximum 4 images allowed");
+        // Проверка количества медиафайлов
+        if (count($mediaFiles) > 4) throw new Exception("Maximum 4 media files allowed");
 
         // Проверяем существование родительского поста
         if ($parentId !== null) {
@@ -116,12 +113,13 @@ class Post {
         );
         $postId = $stmt->fetch()['id'];
 
-        // Сохранение изображений
-        if (!empty($imageUrls)) {
-            foreach ($imageUrls as $index => $url) {
+        // Сохранение медиафайлов
+        if (!empty($mediaFiles)) {
+            foreach ($mediaFiles as $index => $media) {
+                $thumbUrl = isset($media['thumb']) ? $media['thumb'] : null;
                 $this->db->query(
-                    "INSERT INTO post_images (post_id, image_url, display_order) VALUES (?, ?, ?)",
-                    [$postId, $url, $index]
+                    "INSERT INTO post_media (post_id, media_url, media_type, display_order, thumb_url) VALUES (?, ?, ?, ?, ?)",
+                    [$postId, $media['url'], $media['type'], $index, $thumbUrl]
                 );
             }
         }
@@ -142,7 +140,7 @@ class Post {
 
         $params = $userId !== null ? [$userId, $limit, $offset] : [$limit, $offset];
         $posts = $this->db->query($sql, $params)->fetchAll();
-        return $this->attachImages($posts);
+        return $this->attachMedia($posts);
     }
 
     /**
@@ -161,7 +159,7 @@ class Post {
             : [$userId, $limit, $offset];
 
         $posts = $this->db->query($sql, $params)->fetchAll();
-        return $this->attachImages($posts);
+        return $this->attachMedia($posts);
     }
 
     /**
@@ -179,7 +177,7 @@ class Post {
 
         if (!$post) throw new Exception("Post not found");
 
-        $posts = $this->attachImages([$post]);
+        $posts = $this->attachMedia([$post]);
         return $posts[0];
     }
 
@@ -200,9 +198,8 @@ class Post {
             : [$userId, $userId, $limit, $offset];
 
         $replies = $this->db->query($sql, $params)->fetchAll();
-        $replies = $this->attachImages($replies);
+        $replies = $this->attachMedia($replies);
 
-        // Для каждого ответа загружаем родительский пост (для отображения треда)
         $parentSqlBase = $this->baseSelect(false);
         $parentSqlBase .= " FROM posts p JOIN users u ON p.user_id = u.id WHERE p.id = ?";
 
@@ -212,8 +209,8 @@ class Post {
             if ($reply['parent_id']) {
                 $parentData = $this->db->query($parentSqlBase, [$reply['parent_id']])->fetch();
                 if ($parentData) {
-                    $parentWithImages = $this->attachImages([$parentData]);
-                    $parent = $parentWithImages[0];
+                    $parentWithMedia = $this->attachMedia([$parentData]);
+                    $parent = $parentWithMedia[0];
                 }
             }
             $result[] = ['reply' => $reply, 'parent' => $parent];
@@ -235,31 +232,35 @@ class Post {
 
         $params = $userId !== null ? [$userId, $postId] : [$postId];
         $posts = $this->db->query($sql, $params)->fetchAll();
-        return $this->attachImages($posts);
+        return $this->attachMedia($posts);
     }
 
     /**
      * Удалить пост
      * Проверяет права доступа - только автор может удалить свой пост
-     * Удаляет физические файлы изображений
+     * Удаляет физические файлы медиа
      */
     public function delete($postId, $userId) {
         $post = $this->db->query("SELECT user_id FROM posts WHERE id = ?", [$postId])->fetch();
         if (!$post)                    throw new Exception("Post not found");
         if ($post['user_id'] != $userId) throw new Exception("Unauthorized to delete this post");
 
-        // Получаем список изображений для удаления файлов
-        $images = $this->db->query("SELECT image_url FROM post_images WHERE post_id = ?", [$postId])->fetchAll();
+        // Получаем список медиафайлов для удаления
+        try {
+            $mediaFiles = $this->db->query("SELECT media_url FROM post_media WHERE post_id = ?", [$postId])->fetchAll();
 
-        // Удаляем физические файлы
-        foreach ($images as $image) {
-            $filePath = __DIR__ . '/../../' . $image['image_url'];
-            if (file_exists($filePath)) {
-                unlink($filePath);
+            // Удаляем физические файлы
+            foreach ($mediaFiles as $media) {
+                $filePath = __DIR__ . '/../../' . $media['media_url'];
+                if (file_exists($filePath)) {
+                    unlink($filePath);
+                }
             }
+        } catch (Exception $e) {
+            // Таблица может не существовать, игнорируем
         }
 
-        // Удаление поста (CASCADE удалит записи из post_images автоматически)
+        // Удаление поста (CASCADE удалит записи из post_media автоматически)
         $this->db->query("DELETE FROM posts WHERE id = ?", [$postId]);
         return true;
     }

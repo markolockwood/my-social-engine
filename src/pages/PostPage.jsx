@@ -6,7 +6,7 @@ import Sidebar from '../components/Sidebar';
 import MobileNav from '../components/MobileNav';
 import Post from '../components/Post';
 import QuotedPost from '../components/QuotedPost';
-import PostImages from '../components/PostImages';
+import PostMedia from '../components/PostMedia';
 import ComposeReplyModal from '../components/ComposeReplyModal';
 import ComposeWidget from '../components/ComposeWidget';
 import '../styles/PostPage.css';
@@ -178,8 +178,7 @@ const PostPage = () => {
 
           <div className="pp-detail-content">{post.content}</div>
 
-          {/* Изображения поста */}
-          {post.images && <PostImages images={post.images} post={post} />}
+          {post.media && <PostMedia media={post.media} post={post} />}
 
           {quotedPost && (
             <div style={{ marginBottom: '8px' }}>

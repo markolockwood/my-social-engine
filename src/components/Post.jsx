@@ -4,7 +4,7 @@ import { postsAPI } from '../api/api';
 import { useAuth } from '../context/AuthContext';
 import ComposeReplyModal from './ComposeReplyModal';
 import QuotedPost from './QuotedPost';
-import PostImages from './PostImages';
+import PostMedia from './PostMedia';
 import '../styles/Post.css';
 
 /**
@@ -109,7 +109,7 @@ const Post = ({ post, onDelete, onReplyCreated, quotedPost }) => {
         </div>
         <div className="tweet-text">{post.content}</div>
         {/* Изображения поста */}
-        {post.images && <PostImages images={post.images} post={post} />}
+        {post.media && <PostMedia media={post.media} post={post} />}
         {/* Quoted post - цитируемая карточка для быстрых ответов (кликабельна) */}
         {quotedPost && <QuotedPost post={quotedPost} onClick={(e) => { e.stopPropagation(); navigate(`/post/${quotedPost.id}`); }} />}
         <div className="tweet-actions">

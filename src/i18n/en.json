@@ -91,7 +91,7 @@
     "views": "views",
     "comments_count": "replies",
     "likes_count": "likes",
-    "show_new_posts": "Show {{count}} posts"
+    "show_new_posts": "Show {{count}} posts",
     "retweet": "Retweet",
     "unretweet": "Undo retweet",
     "retweet_error": "Failed to retweet"

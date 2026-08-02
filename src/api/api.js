@@ -43,8 +43,8 @@ export const authAPI = {
 
 export const postsAPI = {
   getFeed:    (limit = 20, offset = 0) => api.get(`/posts?limit=${limit}&offset=${offset}`),
-  create:     (content, imageUrls = [], parentId = null, isQuickReply = false) =>
-    api.post('/posts', { content, image_urls: imageUrls, parent_id: parentId, is_quick_reply: isQuickReply }),
+  create:     (content, mediaFiles = [], parentId = null, isQuickReply = false) =>
+    api.post('/posts', { content, media_files: mediaFiles, parent_id: parentId, is_quick_reply: isQuickReply }),
   getById:    (id) => api.get(`/posts/${id}`),
   delete:     (id) => api.delete(`/posts/${id}`),
   like:       (id) => api.post(`/posts/${id}/like`),
@@ -55,6 +55,13 @@ export const postsAPI = {
     const form = new FormData();
     files.forEach(file => form.append('images[]', file));
     return api.post('/upload/post-images', form, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
+  uploadGif: (file) => {
+    const form = new FormData();
+    form.append('gif', file);
+    return api.post('/upload/post-gif', form, {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
   }

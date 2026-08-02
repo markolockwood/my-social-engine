@@ -17,6 +17,8 @@
 
 ### Посты и взаимодействие
 - ✅ Создание постов (до 280 символов)
+- ✅ Прикрепление изображений к постам (до 4 штук)
+- ✅ Прикрепление GIF-анимации к постам (1 на пост, с автовоспроизведением и паузой по клику)
 - ✅ Лента новостей — оригинальные посты + быстрые ответы с цитатами
 - ✅ Ответы на посты (комментарии как вложенные посты)
   - Быстрые ответы через модал (💬) — отображаются в табе "Посты" с цитатой родителя
@@ -81,10 +83,11 @@ CREATE DATABASE ваша_база;
 \i database/migrations/001_add_theme_preference.sql
 \i database/migrations/002_add_language.sql
 \i database/migrations/003_add_profile_fields.sql
-\i database/migrations/004_add_retweets.sql
-\i database/migrations/005_posts_parent_id.sql
-\i database/migrations/006_posts_quick_reply.sql
-\i database/migrations/007_add_views_count.sql
+\i database/migrations/004_posts_parent_id.sql
+\i database/migrations/005_posts_quick_reply.sql
+\i database/migrations/006_add_views_count.sql
+\i database/migrations/007_add_post_media.sql
+\i database/migrations/008_add_media_thumbnails.sql
 ```
 
 ### 3. Настройка конфигурации
@@ -171,7 +174,6 @@ your-project/
 
 ## Следующие шаги (TODO)
 
-- [ ] Прикрепление медиафайлов к постам
 - [ ] Система подписок (follow/unfollow)
 - [ ] Уведомления
 - [ ] Личные сообщения

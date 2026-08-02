@@ -34,10 +34,10 @@ class PostController {
 
         $parentId = isset($input['parent_id']) ? (int)$input['parent_id'] : null;
         $isQuickReply = isset($input['is_quick_reply']) && $input['is_quick_reply'] ? true : false;
-        $imageUrls = isset($input['image_urls']) && is_array($input['image_urls']) ? $input['image_urls'] : [];
+        $mediaFiles = isset($input['media_files']) && is_array($input['media_files']) ? $input['media_files'] : [];
 
         $post = new Post();
-        $postId = $post->create($authUser['userId'], $input['content'] ?? '', $parentId, $isQuickReply, $imageUrls);
+        $postId = $post->create($authUser['userId'], $input['content'] ?? '', $parentId, $isQuickReply, $mediaFiles);
 
         $postData = $post->getById($postId, $authUser['userId']);
 
@@ -169,60 +169,208 @@ class PostController {
         $files = $_FILES['images'];
         $fileCount = count($files['name']);
 
-        // Проверка количества файлов (максимум 4)
         if ($fileCount > 4) {
             http_response_code(400);
             echo json_encode(['error' => 'Maximum 4 images allowed']);
             exit();
         }
 
-        $allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-        $maxSize = 5 * 1024 * 1024; // 5MB
+        $allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+        $maxSize = 5 * 1024 * 1024;
         $uploadedUrls = [];
 
         $uploadDir = __DIR__ . '/../../uploads/posts/';
-        if (!is_dir($uploadDir)) {
-            mkdir($uploadDir, 0755, true);
-        }
+        $thumbDir = __DIR__ . '/../../uploads/posts/thumbs/';
+        if (!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
+        if (!is_dir($thumbDir)) mkdir($thumbDir, 0755, true);
 
-        // Обработка каждого файла
         for ($i = 0; $i < $fileCount; $i++) {
-            // Проверка ошибок загрузки
             if ($files['error'][$i] !== UPLOAD_ERR_OK) {
                 http_response_code(400);
                 echo json_encode(['error' => "Error uploading image " . ($i + 1)]);
                 exit();
             }
 
-            // Проверка типа файла
             if (!in_array($files['type'][$i], $allowedTypes)) {
                 http_response_code(400);
-                echo json_encode(['error' => 'Invalid file type. Allowed: JPEG, PNG, GIF, WEBP']);
+                echo json_encode(['error' => 'Invalid file type. Allowed: JPEG, PNG, WEBP']);
                 exit();
             }
 
-            // Проверка размера
             if ($files['size'][$i] > $maxSize) {
                 http_response_code(400);
                 echo json_encode(['error' => 'File too large (max 5MB)']);
                 exit();
             }
 
-            // Генерация уникального имени файла
             $ext = strtolower(pathinfo($files['name'][$i], PATHINFO_EXTENSION));
             $filename = 'post_img_' . time() . '_' . uniqid() . '.' . $ext;
 
-            // Сохранение файла
             if (!move_uploaded_file($files['tmp_name'][$i], $uploadDir . $filename)) {
                 http_response_code(500);
                 echo json_encode(['error' => 'Failed to save image ' . ($i + 1)]);
                 exit();
             }
 
-            $uploadedUrls[] = '/uploads/posts/' . $filename;
+            // Создание миниатюры
+            $thumbPath = '/uploads/posts/thumbs/' . $filename;
+            $this->createThumbnail($uploadDir . $filename, $thumbDir . $filename, 600);
+
+            $uploadedUrls[] = [
+                'url' => '/uploads/posts/' . $filename,
+                'thumb' => $thumbPath
+            ];
         }
 
         $this->sendResponse(['urls' => $uploadedUrls], 201);
+    }
+
+    /**
+     * Создание миниатюры изображения
+     */
+    private function createThumbnail($source, $dest, $maxWidth) {
+        if (!extension_loaded('gd')) return false;
+
+        $info = getimagesize($source);
+        if (!$info) return false;
+
+        list($width, $height, $type) = $info;
+
+        if ($width <= $maxWidth) {
+            copy($source, $dest);
+            return true;
+        }
+
+        $ratio = $maxWidth / $width;
+        $newWidth = $maxWidth;
+        $newHeight = (int)($height * $ratio);
+
+        $srcImage = null;
+        switch ($type) {
+            case IMAGETYPE_JPEG: $srcImage = imagecreatefromjpeg($source); break;
+            case IMAGETYPE_PNG: $srcImage = imagecreatefrompng($source); break;
+            case IMAGETYPE_WEBP: $srcImage = imagecreatefromwebp($source); break;
+            default: return false;
+        }
+
+        if (!$srcImage) return false;
+
+        $dstImage = imagecreatetruecolor($newWidth, $newHeight);
+
+        if ($type === IMAGETYPE_PNG || $type === IMAGETYPE_WEBP) {
+            imagealphablending($dstImage, false);
+            imagesavealpha($dstImage, true);
+        }
+
+        imagecopyresampled($dstImage, $srcImage, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
+
+        switch ($type) {
+            case IMAGETYPE_JPEG: imagejpeg($dstImage, $dest, 85); break;
+            case IMAGETYPE_PNG: imagepng($dstImage, $dest, 8); break;
+            case IMAGETYPE_WEBP: imagewebp($dstImage, $dest, 85); break;
+        }
+
+        imagedestroy($srcImage);
+        imagedestroy($dstImage);
+
+        return true;
+    }
+
+    /**
+     * POST /upload/post-gif — загрузка гифки для поста (только одна)
+     */
+    public function uploadPostGif() {
+        $authUser = AuthMiddleware::requireAuth();
+
+        if (!isset($_FILES['gif']) || empty($_FILES['gif']['name'])) {
+            http_response_code(400);
+            echo json_encode(['error' => 'No GIF uploaded']);
+            exit();
+        }
+
+        $file = $_FILES['gif'];
+
+        if ($file['error'] !== UPLOAD_ERR_OK) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Error uploading GIF']);
+            exit();
+        }
+
+        if ($file['type'] !== 'image/gif') {
+            http_response_code(400);
+            echo json_encode(['error' => 'Invalid file type. Only GIF allowed']);
+            exit();
+        }
+
+        $maxSize = 10 * 1024 * 1024;
+        if ($file['size'] > $maxSize) {
+            http_response_code(400);
+            echo json_encode(['error' => 'File too large (max 10MB)']);
+            exit();
+        }
+
+        $uploadDir = __DIR__ . '/../../uploads/gifs/';
+        if (!is_dir($uploadDir)) {
+            mkdir($uploadDir, 0755, true);
+        }
+
+        $baseName = 'post_gif_' . time() . '_' . uniqid();
+        $gifPath = $uploadDir . $baseName . '.gif';
+
+        if (!move_uploaded_file($file['tmp_name'], $gifPath)) {
+            http_response_code(500);
+            echo json_encode(['error' => 'Failed to save GIF']);
+            exit();
+        }
+
+        // Конвертация GIF в MP4
+        $mp4Path = $uploadDir . $baseName . '.mp4';
+        $converted = $this->convertGifToMp4($gifPath, $mp4Path);
+
+        if ($converted) {
+            // Удаляем оригинальный GIF
+            unlink($gifPath);
+            $this->sendResponse(['url' => '/uploads/gifs/' . $baseName . '.mp4'], 201);
+        } else {
+            // Если конвертация не удалась, оставляем GIF
+            $this->sendResponse(['url' => '/uploads/gifs/' . $baseName . '.gif'], 201);
+        }
+    }
+
+    /**
+     * Конвертация GIF в MP4 через FFmpeg
+     */
+    private function convertGifToMp4($gifPath, $mp4Path) {
+        // Полный путь к FFmpeg
+        $ffmpegPath = 'C:/ffmpeg/bin/ffmpeg.exe';
+
+        // Проверка существования FFmpeg
+        if (!file_exists($ffmpegPath)) {
+            error_log("FFmpeg not found at: $ffmpegPath");
+            return false;
+        }
+
+        // Конвертация с оптимальными параметрами
+        $cmd = sprintf(
+            '%s -i %s -movflags faststart -pix_fmt yuv420p -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2" -c:v libx264 -preset fast -crf 23 -y %s 2>&1',
+            escapeshellarg($ffmpegPath),
+            escapeshellarg($gifPath),
+            escapeshellarg($mp4Path)
+        );
+
+        exec($cmd, $output, $returnCode);
+
+        if ($returnCode !== 0) {
+            error_log("FFmpeg conversion failed: " . implode("\n", $output));
+            return false;
+        }
+
+        $success = file_exists($mp4Path) && filesize($mp4Path) > 0;
+        if (!$success) {
+            error_log("MP4 file not created or empty");
+        }
+
+        return $success;
     }
 
     /**

@@ -65,6 +65,7 @@
 .quoted-post-images-4 { grid-template-columns: 1fr 1fr; }
 
 .quoted-post-image-item {
+  position: relative;
   overflow: hidden;
   aspect-ratio: 16/9;
 }
@@ -79,4 +80,17 @@
   height: 100%;
   object-fit: cover;
   display: block;
+}
+
+.quoted-media-badge {
+  position: absolute;
+  bottom: 4px;
+  left: 4px;
+  background: rgba(0, 0, 0, 0.75);
+  color: white;
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
 }

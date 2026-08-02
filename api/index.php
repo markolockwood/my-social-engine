@@ -45,6 +45,7 @@ try {
     $router->post('/posts/{id}/comments', 'PostController', 'addComment');
     $router->delete('/comments/{id}', 'PostController', 'deleteComment');
     $router->post('/upload/post-images', 'PostController', 'uploadPostImages');
+    $router->post('/upload/post-gif', 'PostController', 'uploadPostGif');
 
     // === USER ROUTES ===
     $router->get('/users/{username}', 'UserController', 'profile');

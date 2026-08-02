@@ -66,11 +66,16 @@
   justify-content: center;
   position: relative;
   padding: 80px 20px 20px;
+  overflow: hidden;
+  min-height: 0;
 }
 
-.lightbox-image-wrapper img {
+.lightbox-image-wrapper img,
+.lightbox-image-wrapper video {
   max-width: 100%;
   max-height: 100%;
+  width: auto;
+  height: auto;
   object-fit: contain;
   display: block;
   border-radius: 8px;

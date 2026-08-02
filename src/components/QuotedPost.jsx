@@ -52,14 +52,20 @@ const QuotedPost = ({ post, onClick }) => {
 
       <div className="quoted-post-content">{post.content}</div>
 
-      {post.images && post.images.length > 0 && (() => {
-        const imgs = typeof post.images === 'string' ? JSON.parse(post.images) : post.images;
-        const sorted = [...imgs].sort((a, b) => a.order - b.order);
+      {post.media && (() => {
+        const mediaList = typeof post.media === 'string' ? JSON.parse(post.media) : post.media;
+        if (mediaList.length === 0) return null;
+        const sorted = [...mediaList].sort((a, b) => a.order - b.order);
         return (
           <div className={`quoted-post-images quoted-post-images-${Math.min(sorted.length, 4)}`}>
-            {sorted.slice(0, 4).map((img, i) => (
+            {sorted.slice(0, 4).map((item, i) => (
               <div key={i} className="quoted-post-image-item">
-                <img src={img.url} alt={`Image ${i + 1}`} loading="lazy" />
+                {item.type === 'gif' && item.url.endsWith('.mp4') ? (
+                  <video src={item.url} loop muted autoPlay playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                ) : (
+                  <img src={item.thumb || item.url} alt={`Media ${i + 1}`} loading="lazy" />
+                )}
+                {item.type === 'gif' && <span className="quoted-media-badge">GIF</span>}
               </div>
             ))}
           </div>
