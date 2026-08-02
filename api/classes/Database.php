@@ -52,8 +52,13 @@ class Database {
             return $stmt;
         } catch (PDOException $e) {
             error_log("Query error: " . $e->getMessage());
-            error_log("SQL: " . $sql);
-            error_log("Params: " . json_encode($params));
+
+            // Логировать детали только в development
+            if ($this->config['app']['environment'] === 'development') {
+                error_log("SQL: " . $sql);
+                error_log("Params: " . json_encode($params));
+            }
+
             throw new Exception("Query execution failed: " . $e->getMessage());
         }
     }

@@ -14,6 +14,26 @@
 - API endpoint `POST /api/upload/post-gif` — загрузка GIF с автоматической конвертацией в MP4
 - Метод `PostController::createThumbnail()` — генерация миниатюр через GD
 - Метод `PostController::convertGifToMp4()` — конвертация GIF в MP4 через FFmpeg
+- **RateLimitMiddleware** — middleware для ограничения частоты запросов (использует APCu)
+
+### Безопасность
+- **КРИТИЧНО: Валидация MIME через file content**: проверка типа файлов через `finfo_file()` вместо `$_FILES['type']` для защиты от загрузки вредоносных файлов под видом изображений (`PostController.php`, `UserController.php`)
+- **КРИТИЧНО: Whitelist расширений файлов**: дополнительная проверка расширений `.jpg`, `.jpeg`, `.png`, `.webp`, `.gif`
+- **Rate Limiting**: ограничение частоты запросов через `RateLimitMiddleware` (APCu):
+  - Регистрация: 3 попытки за 10 минут с одного IP
+  - Вход: 5 попыток за 5 минут с одного IP (сброс счётчика после успешного логина)
+  - Создание постов: 20 постов за 10 минут на пользователя
+- **Валидация avatar_url**: разрешены только URL из `/uploads/avatars/` с корректными расширениями (regex проверка)
+- **FFmpeg path validation**: проверка, что файлы для конвертации находятся в `/uploads/gifs/` (защита от path traversal)
+- **Удаление файлов**: автоматическое удаление медиафайлов и миниатюр при удалении постов (`Post::delete()`)
+- **Ограничение логирования SQL**: детали запросов (SQL, параметры) логируются только в `development` режиме
+- **CSP заголовки**: добавлены в `.htaccess`:
+  - `Content-Security-Policy` — ограничение источников контента
+  - `X-Content-Type-Options: nosniff` — защита от MIME-sniffing
+  - `X-Frame-Options: DENY` — защита от clickjacking
+  - `X-XSS-Protection: 1; mode=block` — дополнительная XSS защита
+  - `Referrer-Policy: strict-origin-when-cross-origin` — контроль referrer
+- **XSS защита**: React автоматически экранирует весь вывод через `{post.content}` — HTML теги отображаются как текст, не выполняются
 
 ### Изменено
 - **Post.php**: метод `attachMedia()` теперь возвращает `media` (JSON массив с `url`, `thumb`, `type`, `order`) вместо `images`

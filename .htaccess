@@ -1,3 +1,10 @@
+# Заголовки безопасности
+Header set Content-Security-Policy "default-src 'self'; img-src 'self' data: https:; media-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; connect-src 'self';"
+Header set X-Content-Type-Options "nosniff"
+Header set X-Frame-Options "DENY"
+Header set X-XSS-Protection "1; mode=block"
+Header set Referrer-Policy "strict-origin-when-cross-origin"
+
 # Запретить кэширование HTML файлов
 <FilesMatch "\.(html)$">
   Header set Cache-Control "no-cache, no-store, must-revalidate"

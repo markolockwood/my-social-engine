@@ -109,6 +109,15 @@ class UserController {
             exit();
         }
 
+        // Валидация avatar_url (только из /uploads/avatars/)
+        if (isset($data['avatar_url']) && $data['avatar_url'] !== null) {
+            if (!preg_match('#^/uploads/avatars/[a-zA-Z0-9_\-]+\.(jpg|jpeg|png|gif|webp)$#', $data['avatar_url'])) {
+                http_response_code(400);
+                echo json_encode(['error' => 'Invalid avatar URL. Must be from /uploads/avatars/']);
+                exit();
+            }
+        }
+
         $user->updateProfile($authUser['userId'], $data);
         $userData = $user->getById($authUser['userId']);
 
@@ -130,8 +139,12 @@ class UserController {
         $file = $_FILES['avatar'];
         $allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 
-        // Проверка типа файла
-        if (!in_array($file['type'], $allowedTypes)) {
+        // Проверка MIME типа через file content
+        $finfo = finfo_open(FILEINFO_MIME_TYPE);
+        $mimeType = finfo_file($finfo, $file['tmp_name']);
+        finfo_close($finfo);
+
+        if (!in_array($mimeType, $allowedTypes)) {
             http_response_code(400);
             echo json_encode(['error' => 'Invalid file type. Allowed: JPEG, PNG, GIF, WEBP']);
             exit();
@@ -145,6 +158,14 @@ class UserController {
         }
 
         $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+        $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+
+        if (!in_array($ext, $allowedExtensions)) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Invalid file extension']);
+            exit();
+        }
+
         $filename = 'avatar_' . $authUser['userId'] . '_' . time() . '.' . $ext;
         $uploadDir = __DIR__ . '/../../uploads/avatars/';
 

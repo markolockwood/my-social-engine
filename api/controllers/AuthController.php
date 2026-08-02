@@ -4,6 +4,7 @@ require_once __DIR__ . '/../classes/Database.php';
 require_once __DIR__ . '/../classes/User.php';
 require_once __DIR__ . '/../classes/JWT.php';
 require_once __DIR__ . '/../middleware/AuthMiddleware.php';
+require_once __DIR__ . '/../middleware/RateLimitMiddleware.php';
 
 /**
  * Контроллер для авторизации и регистрации
@@ -14,6 +15,9 @@ class AuthController {
      * POST /auth/register — регистрация нового пользователя
      */
     public function register() {
+        // Лимит: 3 регистрации с одного IP за 10 минут
+        RateLimitMiddleware::check('register', 3, 600);
+
         $input = $this->getInput();
 
         $user = new User();
@@ -37,6 +41,9 @@ class AuthController {
      * POST /auth/login — вход по логину/паролю
      */
     public function login() {
+        // Лимит: 5 попыток входа за 5 минут
+        RateLimitMiddleware::check('login', 5, 300);
+
         $input = $this->getInput();
 
         $user = new User();
@@ -44,6 +51,9 @@ class AuthController {
             $input['username'] ?? '',
             $input['password'] ?? ''
         );
+
+        // Сбросить счетчик после успешного логина
+        RateLimitMiddleware::reset('login');
 
         $token = JWT::encode(['userId' => $userData['id'], 'username' => $userData['username']]);
 

@@ -94,7 +94,10 @@ class Post {
      * @return int ID созданного поста
      */
     public function create($userId, $content, $parentId = null, $isQuickReply = false, $mediaFiles = []) {
-        if (empty(trim($content))) throw new Exception("Post content cannot be empty");
+        // Очистка пробелов
+        $content = trim($content);
+
+        if (empty($content)) throw new Exception("Post content cannot be empty");
         if (strlen($content) > 280)  throw new Exception("Post content cannot exceed 280 characters");
 
         // Проверка количества медиафайлов
@@ -109,7 +112,7 @@ class Post {
         // Создание поста
         $stmt = $this->db->query(
             "INSERT INTO posts (user_id, content, parent_id, is_quick_reply) VALUES (?, ?, ?, ?) RETURNING id",
-            [$userId, trim($content), $parentId, $isQuickReply ? 'true' : 'false']
+            [$userId, $content, $parentId, $isQuickReply ? 'true' : 'false']
         );
         $postId = $stmt->fetch()['id'];
 
@@ -247,13 +250,22 @@ class Post {
 
         // Получаем список медиафайлов для удаления
         try {
-            $mediaFiles = $this->db->query("SELECT media_url FROM post_media WHERE post_id = ?", [$postId])->fetchAll();
+            $mediaFiles = $this->db->query("SELECT media_url, thumb_url FROM post_media WHERE post_id = ?", [$postId])->fetchAll();
 
             // Удаляем физические файлы
             foreach ($mediaFiles as $media) {
-                $filePath = __DIR__ . '/../../' . $media['media_url'];
+                // Удалить оригинал
+                $filePath = __DIR__ . '/../../' . ltrim($media['media_url'], '/');
                 if (file_exists($filePath)) {
                     unlink($filePath);
+                }
+
+                // Удалить миниатюру
+                if (!empty($media['thumb_url'])) {
+                    $thumbPath = __DIR__ . '/../../' . ltrim($media['thumb_url'], '/');
+                    if (file_exists($thumbPath)) {
+                        unlink($thumbPath);
+                    }
                 }
             }
         } catch (Exception $e) {

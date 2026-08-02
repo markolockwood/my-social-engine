@@ -3,6 +3,7 @@
 require_once __DIR__ . '/../classes/Database.php';
 require_once __DIR__ . '/../classes/Post.php';
 require_once __DIR__ . '/../middleware/AuthMiddleware.php';
+require_once __DIR__ . '/../middleware/RateLimitMiddleware.php';
 
 /**
  * Контроллер для работы с постами
@@ -30,6 +31,10 @@ class PostController {
      */
     public function create() {
         $authUser = AuthMiddleware::requireAuth();
+
+        // Лимит: 20 постов за 10 минут на пользователя
+        RateLimitMiddleware::check('create_post', 20, 600, 'user_' . $authUser['userId']);
+
         $input = $this->getInput();
 
         $parentId = isset($input['parent_id']) ? (int)$input['parent_id'] : null;
@@ -191,7 +196,12 @@ class PostController {
                 exit();
             }
 
-            if (!in_array($files['type'][$i], $allowedTypes)) {
+            // Проверка MIME типа через file content (безопаснее, чем $_FILES['type'])
+            $finfo = finfo_open(FILEINFO_MIME_TYPE);
+            $mimeType = finfo_file($finfo, $files['tmp_name'][$i]);
+            finfo_close($finfo);
+
+            if (!in_array($mimeType, $allowedTypes)) {
                 http_response_code(400);
                 echo json_encode(['error' => 'Invalid file type. Allowed: JPEG, PNG, WEBP']);
                 exit();
@@ -204,6 +214,14 @@ class PostController {
             }
 
             $ext = strtolower(pathinfo($files['name'][$i], PATHINFO_EXTENSION));
+            $allowedExtensions = ['jpg', 'jpeg', 'png', 'webp'];
+
+            if (!in_array($ext, $allowedExtensions)) {
+                http_response_code(400);
+                echo json_encode(['error' => 'Invalid file extension']);
+                exit();
+            }
+
             $filename = 'post_img_' . time() . '_' . uniqid() . '.' . $ext;
 
             if (!move_uploaded_file($files['tmp_name'][$i], $uploadDir . $filename)) {
@@ -296,7 +314,12 @@ class PostController {
             exit();
         }
 
-        if ($file['type'] !== 'image/gif') {
+        // Проверка MIME типа через file content
+        $finfo = finfo_open(FILEINFO_MIME_TYPE);
+        $mimeType = finfo_file($finfo, $file['tmp_name']);
+        finfo_close($finfo);
+
+        if ($mimeType !== 'image/gif') {
             http_response_code(400);
             echo json_encode(['error' => 'Invalid file type. Only GIF allowed']);
             exit();
@@ -347,6 +370,16 @@ class PostController {
         // Проверка существования FFmpeg
         if (!file_exists($ffmpegPath)) {
             error_log("FFmpeg not found at: $ffmpegPath");
+            return false;
+        }
+
+        // Проверить, что пути находятся в /uploads/gifs/
+        $uploadsDir = realpath(__DIR__ . '/../../uploads/gifs/');
+        $gifRealPath = realpath($gifPath);
+        $mp4RealPath = dirname(realpath(dirname($mp4Path))) . '/' . basename(dirname($mp4Path)) . '/' . basename($mp4Path);
+
+        if (!$gifRealPath || strpos($gifRealPath, $uploadsDir) !== 0) {
+            error_log("Invalid GIF path: $gifPath");
             return false;
         }
 
