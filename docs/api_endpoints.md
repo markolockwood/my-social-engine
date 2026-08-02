@@ -25,7 +25,7 @@
 - `GET /api/posts/{id}/comments` — список комментариев
 - `POST /api/posts/{id}/comments` — добавить комментарий
 - `DELETE /api/comments/{id}` — удалить комментарий
-- `POST /api/upload/post-images` — загрузить изображения для поста (до 4 шт, multipart/form-data, возвращает `{url, thumb}`)
+- `POST /api/upload/post-images` — загрузить изображения для поста (до 4 шт, включая гиф и видео, multipart/form-data, возвращает `{url, thumb}`)
 - `POST /api/upload/post-gif` — загрузить GIF для поста (1 файл, multipart/form-data, автоконвертация в MP4)
 
 ## Пользователи
