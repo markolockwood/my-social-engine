@@ -88,6 +88,8 @@ CREATE DATABASE ваша_база;
 \i database/migrations/006_add_views_count.sql
 \i database/migrations/007_add_post_media.sql
 \i database/migrations/008_add_media_thumbnails.sql
+\i database/migrations/009_temp_uploads.sql
+\i database/migrations/010_add_video_volume.sql
 ```
 
 ### 3. Настройка конфигурации
