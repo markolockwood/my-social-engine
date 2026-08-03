@@ -60,12 +60,15 @@ const QuotedPost = ({ post, onClick }) => {
           <div className={`quoted-post-images quoted-post-images-${Math.min(sorted.length, 4)}`}>
             {sorted.slice(0, 4).map((item, i) => (
               <div key={i} className="quoted-post-image-item">
-                {item.type === 'gif' && item.url.endsWith('.mp4') ? (
+                {item.type === 'video' ? (
+                  <video src={item.url} muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                ) : item.type === 'gif' && item.url.endsWith('.mp4') ? (
                   <video src={item.url} loop muted autoPlay playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                 ) : (
                   <img src={item.thumb || item.url} alt={`Media ${i + 1}`} loading="lazy" />
                 )}
                 {item.type === 'gif' && <span className="quoted-media-badge">GIF</span>}
+                {item.type === 'video' && <span className="quoted-media-badge">VIDEO</span>}
               </div>
             ))}
           </div>

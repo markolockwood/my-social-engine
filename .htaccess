@@ -1,5 +1,5 @@
 # Заголовки безопасности
-Header set Content-Security-Policy "default-src 'self'; img-src 'self' data: https:; media-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; connect-src 'self';"
+Header set Content-Security-Policy "default-src 'self'; img-src 'self' data: https: blob:; media-src 'self' blob:; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; connect-src 'self' blob:; worker-src blob:;"
 Header set X-Content-Type-Options "nosniff"
 Header set X-Frame-Options "DENY"
 Header set X-XSS-Protection "1; mode=block"
@@ -10,6 +10,16 @@ Header set Referrer-Policy "strict-origin-when-cross-origin"
   Header set Cache-Control "no-cache, no-store, must-revalidate"
   Header set Pragma "no-cache"
   Header set Expires 0
+</FilesMatch>
+
+# MIME-типы для HLS
+<FilesMatch "\.m3u8$">
+  Header set Content-Type "application/vnd.apple.mpegurl"
+  Header set Cache-Control "no-cache"
+</FilesMatch>
+<FilesMatch "\.ts$">
+  Header set Content-Type "video/mp2t"
+  Header set Cache-Control "public, max-age=31536000"
 </FilesMatch>
 
 # Агрессивное кэширование для статических ресурсов с хэшами
@@ -23,6 +33,11 @@ Header set Referrer-Policy "strict-origin-when-cross-origin"
   Header set Pragma "no-cache"
   Header set Expires 0
 </If>
+
+# Запретить доступ к служебным скриптам и конфигам
+<FilesMatch "^(cleanup_temp_uploads\.php|composer\.json|package\.json|\.env)$">
+  Require all denied
+</FilesMatch>
 
 RewriteEngine On
 

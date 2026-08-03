@@ -85,6 +85,22 @@ class UserController {
     }
 
     /**
+     * PATCH /user/video-volume — сохранение уровня громкости видео
+     */
+    public function updateVideoVolume() {
+        $authUser = AuthMiddleware::requireAuth();
+        $input = $this->getInput();
+
+        $volume = floatval($input['volume'] ?? 0.45);
+        $volume = max(0, min(1, $volume)); // Ограничиваем 0.0-1.0
+
+        $db = Database::getInstance();
+        $db->query("UPDATE users SET video_volume = ? WHERE id = ?", [$volume, $authUser['userId']]);
+
+        $this->sendResponse(['volume' => $volume]);
+    }
+
+    /**
      * PATCH /user/profile — обновление профиля
      */
     public function updateProfile() {

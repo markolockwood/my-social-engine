@@ -240,6 +240,17 @@ class PostController {
             ];
         }
 
+        // Регистрируем все изображения как временные загрузки
+        try {
+            $db = Database::getInstance();
+            foreach ($uploadedUrls as $item) {
+                $db->query(
+                    "INSERT INTO temp_uploads (user_id, file_path, media_type) VALUES (?, ?, ?)",
+                    [$authUser['userId'], $item['url'], 'image']
+                );
+            }
+        } catch (Exception $e) {}
+
         $this->sendResponse(['urls' => $uploadedUrls], 201);
     }
 
@@ -353,15 +364,295 @@ class PostController {
         if ($converted) {
             // Удаляем оригинальный GIF
             unlink($gifPath);
-            $this->sendResponse(['url' => '/uploads/gifs/' . $baseName . '.mp4'], 201);
+            $url = '/uploads/gifs/' . $baseName . '.mp4';
         } else {
             // Если конвертация не удалась, оставляем GIF
-            $this->sendResponse(['url' => '/uploads/gifs/' . $baseName . '.gif'], 201);
+            $url = '/uploads/gifs/' . $baseName . '.gif';
         }
+
+        // Регистрируем как временную загрузку
+        try {
+            $db = Database::getInstance();
+            $db->query(
+                "INSERT INTO temp_uploads (user_id, file_path, media_type) VALUES (?, ?, ?)",
+                [$authUser['userId'], $url, 'gif']
+            );
+        } catch (Exception $e) {}
+
+        $this->sendResponse(['url' => $url], 201);
     }
 
     /**
-     * Конвертация GIF в MP4 через FFmpeg
+     * DELETE /upload/media — удаление загруженного медиафайла с сервера
+     * Для HLS-видео удаляет всю директорию {uuid}/
+     */
+    public function deleteUploadedMedia() {
+        AuthMiddleware::requireAuth();
+
+        $input = $this->getInput();
+        $url   = trim($input['url'] ?? '');
+
+        if (!preg_match('#^/uploads/(videos|posts|gifs)/#', $url)) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Invalid URL']);
+            exit();
+        }
+
+        $base = realpath(__DIR__ . '/../../');
+
+        // HLS-видео: /uploads/videos/{uuid}/master.m3u8 → удалить директорию uuid/
+        if (preg_match('#^/uploads/videos/([a-f0-9]+)/master\.m3u8$#', $url, $m)) {
+            $dir = $base . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR
+                         . 'videos'  . DIRECTORY_SEPARATOR . $m[1];
+            if (is_dir($dir)) $this->deleteDirectory($dir);
+            $this->sendResponse(['ok' => true]);
+        }
+
+        // Одиночный файл (старые .mp4, картинки, GIF)
+        $filePath = $base . DIRECTORY_SEPARATOR . ltrim(str_replace('/', DIRECTORY_SEPARATOR, $url), DIRECTORY_SEPARATOR);
+        if (file_exists($filePath)) {
+            unlink($filePath);
+            // Миниатюра для изображений постов
+            if (strpos($url, '/uploads/posts/') === 0) {
+                $thumb = $base . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR
+                               . 'posts'   . DIRECTORY_SEPARATOR . 'thumbs' . DIRECTORY_SEPARATOR
+                               . basename($url);
+                if (file_exists($thumb)) unlink($thumb);
+            }
+        }
+
+        $this->sendResponse(['ok' => true]);
+    }
+
+    /**
+     * Рекурсивное удаление директории
+     */
+    private function deleteDirectory($dir) {
+        if (!is_dir($dir)) return;
+        foreach (array_diff(scandir($dir), ['.', '..']) as $item) {
+            $path = $dir . DIRECTORY_SEPARATOR . $item;
+            is_dir($path) ? $this->deleteDirectory($path) : unlink($path);
+        }
+        rmdir($dir);
+    }
+
+    /**
+     * POST /upload/post-video — загрузка видео с HLS-транскодингом (360p/720p/1080p)
+     */
+    public function uploadPostVideo() {
+        // Транскодинг может занять время — снимаем лимит
+        set_time_limit(0);
+
+        $authUser = AuthMiddleware::requireAuth();
+
+        if (!isset($_FILES['video']) || empty($_FILES['video']['name'])) {
+            http_response_code(400);
+            echo json_encode(['error' => 'No video uploaded']);
+            exit();
+        }
+
+        $file = $_FILES['video'];
+
+        if ($file['error'] !== UPLOAD_ERR_OK) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Error uploading video']);
+            exit();
+        }
+
+        $finfo    = finfo_open(FILEINFO_MIME_TYPE);
+        $mimeType = finfo_file($finfo, $file['tmp_name']);
+        finfo_close($finfo);
+
+        $allowedMimes = ['video/mp4', 'video/quicktime', 'video/webm', 'video/x-msvideo', 'video/mpeg'];
+        if (!in_array($mimeType, $allowedMimes)) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Invalid file type. Allowed: MP4, MOV, WebM, AVI']);
+            exit();
+        }
+
+        $maxSize = 100 * 1024 * 1024;
+        if ($file['size'] > $maxSize) {
+            http_response_code(400);
+            echo json_encode(['error' => 'File too large (max 100MB)']);
+            exit();
+        }
+
+        $ext             = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+        $allowedExts     = ['mp4', 'mov', 'webm', 'avi', 'mpeg', 'mpg'];
+        if (!in_array($ext, $allowedExts)) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Invalid file extension']);
+            exit();
+        }
+
+        // Уникальная директория для HLS-сегментов этого видео
+        $uuid     = bin2hex(random_bytes(12));
+        $videoDir = __DIR__ . '/../../uploads/videos/' . $uuid . '/';
+        mkdir($videoDir, 0755, true);
+
+        $originalPath = $videoDir . 'original.' . $ext;
+        if (!move_uploaded_file($file['tmp_name'], $originalPath)) {
+            rmdir($videoDir);
+            http_response_code(500);
+            echo json_encode(['error' => 'Failed to save video']);
+            exit();
+        }
+
+        // Определяем размеры оригинала, чтобы не апскейлить
+        $info           = $this->getVideoInfo($originalPath);
+        $originalHeight = $info['height'];
+        $hasAudio       = $info['has_audio'];
+
+        // Уровни качества: генерируем только те, что <= оригинала
+        $qualityLevels = [
+            360  => ['bitrate' => '400k',  'audioBitrate' => '96k',  'bandwidth' => 496000,  'resolution' => '640x360'],
+            720  => ['bitrate' => '2000k', 'audioBitrate' => '128k', 'bandwidth' => 2128000, 'resolution' => '1280x720'],
+            1080 => ['bitrate' => '4500k', 'audioBitrate' => '192k', 'bandwidth' => 4692000, 'resolution' => '1920x1080'],
+        ];
+
+        $generated = [];
+        foreach ($qualityLevels as $height => $params) {
+            // Не апскейлируем — пропускаем качество выше оригинала
+            if ($height > $originalHeight + 60) continue;
+            $ok = $this->transcodeToHLS($originalPath, $videoDir, $height, $params, $hasAudio);
+            if ($ok) $generated[$height] = $params;
+        }
+
+        // Если ни один уровень не сгенерирован (очень маленькое видео), делаем 360p
+        if (empty($generated)) {
+            $ok = $this->transcodeToHLS($originalPath, $videoDir, 360, $qualityLevels[360], $hasAudio);
+            if ($ok) $generated[360] = $qualityLevels[360];
+        }
+
+        if (empty($generated)) {
+            http_response_code(500);
+            echo json_encode(['error' => 'Video transcoding failed']);
+            exit();
+        }
+
+        $this->generateMasterPlaylist($videoDir . 'master.m3u8', $generated);
+
+        $url = '/uploads/videos/' . $uuid . '/master.m3u8';
+
+        // Регистрируем как временную загрузку (удалится через 48ч если пост не создан)
+        try {
+            $db = Database::getInstance();
+            $db->query(
+                "INSERT INTO temp_uploads (user_id, file_path, media_type) VALUES (?, ?, ?)",
+                [$authUser['userId'], $url, 'video']
+            );
+        } catch (Exception $e) {}
+
+        $this->sendResponse([
+            'url'      => $url,
+            'filename' => $file['name'],
+        ], 201);
+    }
+
+    /**
+     * Получить размеры видео и наличие аудиодорожки через ffprobe
+     */
+    private function getVideoInfo($filePath) {
+        $ffprobe = 'C:/ffmpeg/bin/ffprobe.exe';
+        $default = ['width' => 1920, 'height' => 1080, 'has_audio' => true];
+
+        if (!file_exists($ffprobe)) return $default;
+
+        $cmd = sprintf(
+            '%s -v quiet -print_format json -show_streams %s 2>&1',
+            escapeshellarg($ffprobe),
+            escapeshellarg($filePath)
+        );
+        exec($cmd, $out);
+        $data = json_decode(implode('', $out), true);
+
+        $result = ['width' => 1920, 'height' => 1080, 'has_audio' => false];
+        foreach ($data['streams'] ?? [] as $stream) {
+            if ($stream['codec_type'] === 'video') {
+                $result['width']  = (int)($stream['width']  ?? 1920);
+                $result['height'] = (int)($stream['height'] ?? 1080);
+            }
+            if ($stream['codec_type'] === 'audio') {
+                $result['has_audio'] = true;
+            }
+        }
+        return $result;
+    }
+
+    /**
+     * Транскодировать видео в HLS-сегменты заданного качества
+     * Использует proc_open с массивом аргументов — обходит cmd.exe,
+     * поэтому %03d в шаблоне сегментов доходит до FFmpeg без искажений.
+     */
+    private function transcodeToHLS($inputPath, $videoDir, $height, $params, $hasAudio) {
+        $ffmpeg = 'C:/ffmpeg/bin/ffmpeg.exe';
+        if (!file_exists($ffmpeg)) return false;
+
+        $outDir = $videoDir . $height . 'p/';
+        if (!is_dir($outDir)) mkdir($outDir, 0755, true);
+
+        $bitrateNum = (int)$params['bitrate'];
+        $bufsize    = ($bitrateNum * 2) . 'k';
+
+        $audioArgs = $hasAudio
+            ? ['-c:a', 'aac', '-b:a', $params['audioBitrate'], '-ar', '44100', '-ac', '2']
+            : ['-an'];
+
+        // Передаём args массивом — proc_open вызывает FFmpeg напрямую, без cmd.exe
+        $args = array_merge(
+            [
+                $ffmpeg, '-i', $inputPath,
+                '-vf', "scale=-2:{$height}",
+                '-c:v', 'libx264', '-b:v', $params['bitrate'],
+                '-maxrate', $params['bitrate'], '-bufsize', $bufsize,
+                '-preset', 'fast', '-profile:v', 'baseline', '-level', '3.1',
+                '-pix_fmt', 'yuv420p',
+            ],
+            $audioArgs,
+            [
+                '-hls_time', '6', '-hls_playlist_type', 'vod',
+                '-hls_segment_filename', $outDir . 'seg%03d.ts',
+                $outDir . 'stream.m3u8', '-y',
+            ]
+        );
+
+        $descriptors = [['pipe', 'r'], ['pipe', 'w'], ['pipe', 'w']];
+        $process = proc_open($args, $descriptors, $pipes);
+
+        if (!is_resource($process)) {
+            error_log("proc_open failed for HLS {$height}p");
+            return false;
+        }
+
+        fclose($pipes[0]);
+        $stderr = stream_get_contents($pipes[2]);
+        fclose($pipes[1]);
+        fclose($pipes[2]);
+        $returnCode = proc_close($process);
+
+        if ($returnCode !== 0) {
+            error_log("HLS transcode {$height}p failed: " . $stderr);
+            return false;
+        }
+        return file_exists($outDir . 'stream.m3u8');
+    }
+
+    /**
+     * Генерировать master.m3u8 из сгенерированных уровней качества
+     */
+    private function generateMasterPlaylist($masterPath, $levels) {
+        $content = "#EXTM3U\n#EXT-X-VERSION:3\n";
+        ksort($levels); // порядок от низкого к высокому
+        foreach ($levels as $height => $params) {
+            $content .= "#EXT-X-STREAM-INF:BANDWIDTH={$params['bandwidth']}"
+                      . ",RESOLUTION={$params['resolution']}"
+                      . ",CODECS=\"avc1.42e01e,mp4a.40.2\"\n";
+            $content .= "{$height}p/stream.m3u8\n";
+        }
+        file_put_contents($masterPath, $content);
+    }
+
+    /**
      */
     private function convertGifToMp4($gifPath, $mp4Path) {
         // Полный путь к FFmpeg

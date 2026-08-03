@@ -100,6 +100,41 @@
   padding-left: 4px;
 }
 
+.post-media-video-item {
+  cursor: pointer;
+  background: #000;
+}
+
+/* Панель управления видео — левый нижний угол ячейки */
+.video-controls-bar {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(0, 0, 0, 0.72);
+  border-radius: 20px;
+  padding: 5px 10px;
+  pointer-events: none;
+  z-index: 2;
+  user-select: none;
+}
+
+.video-play-icon {
+  color: #fff;
+  font-size: 13px;
+  line-height: 1;
+}
+
+.video-timer {
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.3px;
+}
+
 @media (max-width: 600px) {
   .post-media {
     gap: 3px;

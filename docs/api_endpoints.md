@@ -8,6 +8,7 @@
 - `PATCH /api/user/theme` — изменить тему (light/dark)
 - `PATCH /api/user/language` — изменить язык (en/ru)
 - `PATCH /api/user/profile` — обновить профиль
+- `PATCH /api/user/video-volume` — сохранить уровень громкости видео (0.0-1.0)
 - `POST /api/upload/avatar` — загрузить аватар
 
 ## Посты
@@ -25,8 +26,10 @@
 - `GET /api/posts/{id}/comments` — список комментариев
 - `POST /api/posts/{id}/comments` — добавить комментарий
 - `DELETE /api/comments/{id}` — удалить комментарий
-- `POST /api/upload/post-images` — загрузить изображения для поста (до 4 шт, включая гиф и видео, multipart/form-data, возвращает `{url, thumb}`)
-- `POST /api/upload/post-gif` — загрузить GIF для поста (1 файл, multipart/form-data, автоконвертация в MP4)
+- `POST /api/upload/post-images` — загрузить изображения для поста (до 4 шт, multipart/form-data, возвращает `[{url, thumb, type}]`)
+- `POST /api/upload/post-gif` — загрузить GIF для поста (1 файл, multipart/form-data, автоконвертация в MP4, возвращает `{url, type: 'gif'}`)
+- `POST /api/upload/post-video` — загрузить видео для поста (1 файл до 100MB, multipart/form-data, HLS-конвертация через FFmpeg, возвращает `{url, thumb, type: 'video'}`)
+- `DELETE /api/media/delete` — удалить медиафайл с сервера (для cleanup при отмене поста)
 
 ## Пользователи
 

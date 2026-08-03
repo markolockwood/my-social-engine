@@ -108,5 +108,11 @@
     "change_avatar": "Change avatar",
     "name_required": "Name cannot be empty",
     "save_error": "Failed to save changes"
+  },
+  "video": {
+    "playback_speed": "Playback speed",
+    "quality": "Quality",
+    "normal": "Normal",
+    "auto": "Auto"
   }
 }

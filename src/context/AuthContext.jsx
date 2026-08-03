@@ -123,8 +123,17 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem('user', JSON.stringify(merged));
   };
 
+  const updateVideoVolume = async (volume) => {
+    try {
+      await authAPI.updateVideoVolume(volume);
+      updateUser({ video_volume: volume });
+    } catch (error) {
+      console.error('Failed to update video volume:', error);
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, theme, language, loading, t, login, register, logout, toggleTheme, changeLanguage, updateUser }}>
+    <AuthContext.Provider value={{ user, theme, language, loading, t, login, register, logout, toggleTheme, changeLanguage, updateUser, updateVideoVolume }}>
       {children}
     </AuthContext.Provider>
   );

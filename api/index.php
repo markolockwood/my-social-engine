@@ -46,6 +46,8 @@ try {
     $router->delete('/comments/{id}', 'PostController', 'deleteComment');
     $router->post('/upload/post-images', 'PostController', 'uploadPostImages');
     $router->post('/upload/post-gif', 'PostController', 'uploadPostGif');
+    $router->post('/upload/post-video', 'PostController', 'uploadPostVideo');
+    $router->delete('/upload/media', 'PostController', 'deleteUploadedMedia');
 
     // === USER ROUTES ===
     $router->get('/users/{username}', 'UserController', 'profile');
@@ -54,6 +56,7 @@ try {
     $router->patch('/user/theme', 'UserController', 'updateTheme');
     $router->patch('/user/language', 'UserController', 'updateLanguage');
     $router->patch('/user/profile', 'UserController', 'updateProfile');
+    $router->patch('/user/video-volume', 'UserController', 'updateVideoVolume');
     $router->post('/upload/avatar', 'UserController', 'uploadAvatar');
 
     // Запуск роутера

@@ -34,6 +34,7 @@ export const authAPI = {
   updateTheme:    (theme) => api.patch('/user/theme',    { theme }),
   updateLanguage: (lang)  => api.patch('/user/language', { language: lang }),
   updateProfile:  (data)  => api.patch('/user/profile', data),
+  updateVideoVolume: (volume) => api.patch('/user/video-volume', { volume }),
   uploadAvatar:   (file)  => {
     const form = new FormData();
     form.append('avatar', file);
@@ -51,18 +52,29 @@ export const postsAPI = {
   unlike:     (id) => api.post(`/posts/${id}/unlike`),
   getReplies: (id) => api.get(`/posts/${id}/replies`),
   incrementView: (id) => api.post(`/posts/${id}/view`),
-  uploadImages: (files) => {
+  deleteMedia: (url) => api.delete('/upload/media', { data: { url } }),
+  uploadImages: (files, config = {}) => {
     const form = new FormData();
     files.forEach(file => form.append('images[]', file));
     return api.post('/upload/post-images', form, {
-      headers: { 'Content-Type': 'multipart/form-data' }
+      headers: { 'Content-Type': 'multipart/form-data' },
+      ...config
     });
   },
-  uploadGif: (file) => {
+  uploadGif: (file, config = {}) => {
     const form = new FormData();
     form.append('gif', file);
     return api.post('/upload/post-gif', form, {
-      headers: { 'Content-Type': 'multipart/form-data' }
+      headers: { 'Content-Type': 'multipart/form-data' },
+      ...config
+    });
+  },
+  uploadVideo: (file, config = {}) => {
+    const form = new FormData();
+    form.append('video', file);
+    return api.post('/upload/post-video', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      ...config
     });
   }
 };

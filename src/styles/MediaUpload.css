@@ -87,6 +87,73 @@
   background: rgba(0, 0, 0, 0.9);
 }
 
+/* Полупрозрачный оверлей на ячейке видео пока идёт загрузка */
+.media-upload-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.media-upload-pct {
+  color: #fff;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+/* Список прогресс-баров под сеткой (для нескольких видео) */
+.video-progress-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+/* Прогресс-бар загрузки видео — тёмная полоса с именем файла, как в Twitter */
+.gif-upload-progress {
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 10px;
+  background: #1a2433;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+
+.gif-upload-progress-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  background: #1d4f8a;
+  transition: width 0.25s ease;
+  pointer-events: none;
+}
+
+.gif-upload-progress-text {
+  position: relative;
+  z-index: 1;
+  padding: 10px 16px;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.media-preview-item video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
 .media-upload-btn {
   display: inline-flex;
   align-items: center;

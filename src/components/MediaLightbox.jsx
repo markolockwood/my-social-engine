@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { postsAPI } from '../api/api';
 import { useAuth } from '../context/AuthContext';
+import VideoPlayer from './VideoPlayer';
 import Post from './Post';
 import ComposeWidget from './ComposeWidget';
+import ComposeReplyModal from './ComposeReplyModal';
 import '../styles/ImageLightbox.css';
 
 const MediaLightbox = ({ media, initialIndex, post, onClose }) => {
@@ -14,6 +16,7 @@ const MediaLightbox = ({ media, initialIndex, post, onClose }) => {
   const [loading, setLoading] = useState(false);
   const [postDetails, setPostDetails] = useState(null);
   const [replies, setReplies] = useState([]);
+  const [showQuickReply, setShowQuickReply] = useState(false);
   const { user, t } = useAuth();
   const navigate = useNavigate();
 
@@ -85,6 +88,20 @@ const MediaLightbox = ({ media, initialIndex, post, onClose }) => {
 
   const currentMedia = media[currentIndex];
 
+  if (showQuickReply) {
+    return (
+      <ComposeReplyModal
+        post={post}
+        onClose={() => setShowQuickReply(false)}
+        onSuccess={(reply) => {
+          setReplies(prev => [reply, ...prev]);
+          setCommentsCount(n => n + 1);
+          setShowQuickReply(false);
+        }}
+      />
+    );
+  }
+
   return (
     <div className="image-lightbox-modal" onClick={(e) => { e.stopPropagation(); onClose(); }}>
       <div className="lightbox-container">
@@ -99,7 +116,13 @@ const MediaLightbox = ({ media, initialIndex, post, onClose }) => {
                 <img src={currentMedia.url} alt="GIF" onClick={(e) => e.stopPropagation()} />
               )
             ) : currentMedia.type === 'video' ? (
-              <video src={currentMedia.url} controls onClick={(e) => e.stopPropagation()} />
+              <VideoPlayer
+                src={currentMedia.url}
+                autoPlay
+                muted={false}
+                showQuality
+                objectFit="contain"
+              />
             ) : (
               <img src={currentMedia.url} alt={`Image ${currentIndex + 1}`} onClick={(e) => e.stopPropagation()} />
             )}
@@ -127,7 +150,10 @@ const MediaLightbox = ({ media, initialIndex, post, onClose }) => {
           </div>
 
           <div className="lightbox-actions" onClick={(e) => e.stopPropagation()}>
-            <button className="lightbox-action">
+            <button
+              className="lightbox-action"
+              onClick={() => setShowQuickReply(true)}
+            >
               <span>💬</span>
               <span>{commentsCount || 0}</span>
             </button>

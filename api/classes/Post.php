@@ -125,6 +125,18 @@ class Post {
                     [$postId, $media['url'], $media['type'], $index, $thumbUrl]
                 );
             }
+
+            // Удаляем медиа из temp_uploads — теперь они привязаны к посту
+            try {
+                foreach ($mediaFiles as $media) {
+                    $this->db->query(
+                        "DELETE FROM temp_uploads WHERE user_id = ? AND file_path = ?",
+                        [$userId, $media['url']]
+                    );
+                }
+            } catch (Exception $e) {
+                // Игнорируем ошибки (таблица может не существовать в старых установках)
+            }
         }
 
         return $postId;
@@ -250,31 +262,50 @@ class Post {
 
         // Получаем список медиафайлов для удаления
         try {
-            $mediaFiles = $this->db->query("SELECT media_url, thumb_url FROM post_media WHERE post_id = ?", [$postId])->fetchAll();
+            $mediaFiles = $this->db->query("SELECT media_url, media_type, thumb_url FROM post_media WHERE post_id = ?", [$postId])->fetchAll();
+            $basePath = realpath(__DIR__ . '/../../');
 
-            // Удаляем физические файлы
             foreach ($mediaFiles as $media) {
-                // Удалить оригинал
-                $filePath = __DIR__ . '/../../' . ltrim($media['media_url'], '/');
-                if (file_exists($filePath)) {
-                    unlink($filePath);
-                }
+                $url = $media['media_url'];
 
-                // Удалить миниатюру
-                if (!empty($media['thumb_url'])) {
-                    $thumbPath = __DIR__ . '/../../' . ltrim($media['thumb_url'], '/');
-                    if (file_exists($thumbPath)) {
-                        unlink($thumbPath);
+                // HLS-видео: /uploads/videos/{uuid}/master.m3u8 → удалить директорию
+                if (preg_match('#^/uploads/videos/([a-f0-9]+)/master\.m3u8$#', $url, $m)) {
+                    $dir = $basePath . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR
+                                     . 'videos'  . DIRECTORY_SEPARATOR . $m[1];
+                    if (is_dir($dir)) {
+                        $this->deleteDirectoryRecursive($dir);
+                    }
+                } else {
+                    // Одиночный файл (изображение, GIF, старое видео)
+                    $filePath = $basePath . DIRECTORY_SEPARATOR . ltrim(str_replace('/', DIRECTORY_SEPARATOR, $url), DIRECTORY_SEPARATOR);
+                    if (file_exists($filePath)) unlink($filePath);
+
+                    // Миниатюра для изображений
+                    if (!empty($media['thumb_url'])) {
+                        $thumbPath = $basePath . DIRECTORY_SEPARATOR . ltrim(str_replace('/', DIRECTORY_SEPARATOR, $media['thumb_url']), DIRECTORY_SEPARATOR);
+                        if (file_exists($thumbPath)) unlink($thumbPath);
                     }
                 }
             }
         } catch (Exception $e) {
-            // Таблица может не существовать, игнорируем
+            // Игнорируем ошибки удаления файлов
         }
 
         // Удаление поста (CASCADE удалит записи из post_media автоматически)
         $this->db->query("DELETE FROM posts WHERE id = ?", [$postId]);
         return true;
+    }
+
+    /**
+     * Рекурсивное удаление директории (для HLS-видео)
+     */
+    private function deleteDirectoryRecursive($dir) {
+        if (!is_dir($dir)) return;
+        foreach (array_diff(scandir($dir), ['.', '..']) as $item) {
+            $path = $dir . DIRECTORY_SEPARATOR . $item;
+            is_dir($path) ? $this->deleteDirectoryRecursive($path) : unlink($path);
+        }
+        rmdir($dir);
     }
 
     /**
