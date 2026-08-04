@@ -90,6 +90,7 @@ CREATE DATABASE ваша_база;
 \i database/migrations/008_add_media_thumbnails.sql
 \i database/migrations/009_temp_uploads.sql
 \i database/migrations/010_add_video_volume.sql
+\i database/migrations/011_add_tracking_id_to_temp_uploads.sql
 ```
 
 ### 3. Настройка конфигурации

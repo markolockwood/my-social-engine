@@ -438,7 +438,7 @@ class PostController {
                         $this->deleteDirectory($dir);
                         $deleted++;
                     }
-                if ($mediaType === 'image') {
+                } else if ($mediaType === 'image') {
                     $filePath = $base . $path;
                     if (file_exists($filePath)) {
                         unlink($filePath);
