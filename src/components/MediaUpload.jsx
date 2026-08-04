@@ -1,18 +1,90 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useUpload } from '../context/UploadContext';
 import { postsAPI } from '../api/api';
 import '../styles/MediaUpload.css';
 
 /**
  * Все медиа (изображения, GIF, видео) загружаются на сервер НЕМЕДЛЕННО при прикреплении.
- * Это позволяет сохранять их в черновике по server URL.
+ * Использует глобальный UploadContext для сохранения состояния загрузки при навигации.
  */
-const MediaUpload = ({ onMediaChange, resetTrigger, imageInputRef, gifInputRef, videoInputRef, initialItems }) => {
-  const [items, setItems] = useState(() => initialItems || []);
+const MediaUpload = ({ onMediaChange, resetTrigger, imageInputRef, gifInputRef, videoInputRef, initialItems, contextKey = 'default' }) => {
+  const { startUpload, cancelUpload, getUploadsForContext } = useUpload();
+  const [items, setItems] = useState(() => {
+    // При монтировании восстанавливаем как завершенные (initialItems), так и активные загрузки
+    const initial = initialItems || [];
+    const activeUploads = getUploadsForContext(contextKey);
 
-  const aborters         = useRef(new Map());
+    // Добавляем активные загрузки, которых нет в initialItems
+    const activeItems = activeUploads
+      .filter(upload => !initial.some(item => item.id === upload.id))
+      .map(upload => ({
+        id: upload.id,
+        file: null,
+        type: upload.type,
+        preview: upload.preview,
+        status: upload.status,
+        uploadedUrl: upload.uploadedUrl,
+        filename: upload.filename,
+        progress: upload.progress,
+        thumb: upload.thumb,
+      }));
+
+    return [...initial, ...activeItems];
+  });
+
   const onMediaChangeRef = useRef(onMediaChange);
   const mountedRef       = useRef(false);
   useEffect(() => { onMediaChangeRef.current = onMediaChange; }, [onMediaChange]);
+
+  // Синхронизируем локальные items с глобальным контекстом
+  useEffect(() => {
+    const uploadsForContext = getUploadsForContext(contextKey);
+
+    setItems(prev => {
+      let hasChanges = false;
+      const newItems = [...prev];
+
+      // 1. Обновляем существующие items
+      for (let i = 0; i < newItems.length; i++) {
+        const upload = uploadsForContext.find(u => u.id === newItems[i].id);
+        if (upload && (
+          upload.status !== newItems[i].status ||
+          upload.progress !== newItems[i].progress ||
+          upload.uploadedUrl !== newItems[i].uploadedUrl
+        )) {
+          hasChanges = true;
+          newItems[i] = {
+            ...newItems[i],
+            status: upload.status,
+            progress: upload.progress,
+            uploadedUrl: upload.uploadedUrl,
+            thumb: upload.thumb,
+            preview: upload.preview,
+          };
+        }
+      }
+
+      // 2. Добавляем новые items из UploadContext (если их нет в текущем списке)
+      uploadsForContext.forEach(upload => {
+        if (!newItems.some(item => item.id === upload.id)) {
+          hasChanges = true;
+          newItems.push({
+            id: upload.id,
+            file: null,
+            type: upload.type,
+            preview: upload.preview,
+            status: upload.status,
+            uploadedUrl: upload.uploadedUrl,
+            filename: upload.filename,
+            progress: upload.progress,
+            thumb: upload.thumb,
+          });
+        }
+      });
+
+      return hasChanges ? newItems : prev;
+    });
+  }, [getUploadsForContext, contextKey]);
 
   useEffect(() => {
     if (!onMediaChangeRef.current) return;
@@ -31,96 +103,20 @@ const MediaUpload = ({ onMediaChange, resetTrigger, imageInputRef, gifInputRef, 
 
   useEffect(() => {
     if (!mountedRef.current) { mountedRef.current = true; return; }
-    aborters.current.forEach(c => c.abort());
-    aborters.current.clear();
+    // Отменяем все загрузки для этого контекста
     setItems(prev => {
       prev.forEach(item => {
-        if (item.preview?.startsWith('blob:')) URL.revokeObjectURL(item.preview);
+        if (item.status === 'uploading') {
+          cancelUpload(item.id);
+        }
       });
       return [];
     });
-  }, [resetTrigger]);
-
-  const startUpload = useCallback(async (id, file, type) => {
-    const ctrl = new AbortController();
-    aborters.current.set(id, ctrl);
-    console.log(`[UPLOAD] START id=${id} type=${type} file=${file.name}`);
-    try {
-      let res;
-      if (type === 'video') {
-        res = await postsAPI.uploadVideo(file, {
-          signal: ctrl.signal,
-          onUploadProgress: (e) => {
-            const pct = e.total ? Math.round((e.loaded / e.total) * 90) : 0;
-            setItems(prev => prev.map(it => it.id === id ? { ...it, progress: pct } : it));
-          },
-        });
-        console.log(`[UPLOAD] VIDEO SUCCESS id=${id} url=${res.data.url}`);
-        setItems(prev =>
-          prev.map(it => it.id === id
-            ? { ...it, status: 'done', uploadedUrl: res.data.url, progress: 100 }
-            : it
-          )
-        );
-      } else if (type === 'gif') {
-        res = await postsAPI.uploadGif(file, {
-          signal: ctrl.signal,
-          onUploadProgress: (e) => {
-            const pct = e.total ? Math.round((e.loaded / e.total) * 100) : 0;
-            setItems(prev => prev.map(it => it.id === id ? { ...it, progress: pct } : it));
-          },
-        });
-        console.log(`[UPLOAD] GIF SUCCESS id=${id} url=${res.data.url}`);
-        setItems(prev =>
-          prev.map(it => {
-            if (it.id === id) {
-              if (it.preview?.startsWith('blob:')) URL.revokeObjectURL(it.preview);
-              return { ...it, status: 'done', uploadedUrl: res.data.url, preview: res.data.url, progress: 100 };
-            }
-            return it;
-          })
-        );
-      } else if (type === 'image') {
-        res = await postsAPI.uploadImages([file], {
-          signal: ctrl.signal,
-          onUploadProgress: (e) => {
-            const pct = e.total ? Math.round((e.loaded / e.total) * 100) : 0;
-            setItems(prev => prev.map(it => it.id === id ? { ...it, progress: pct } : it));
-          },
-        });
-        console.log(`[UPLOAD] IMAGE SUCCESS id=${id} response=`, res.data);
-        const uploaded = res.data.urls[0];
-        const url   = typeof uploaded === 'string' ? uploaded : uploaded.url;
-        const thumb = typeof uploaded === 'object' ? uploaded.thumb : null;
-        console.log(`[UPLOAD] IMAGE PARSED url=${url} thumb=${thumb}`);
-        setItems(prev =>
-          prev.map(it => it.id === id
-            ? { ...it, status: 'done', uploadedUrl: url, thumb, progress: 100 }
-            : it
-          )
-        );
-      }
-    } catch (err) {
-      console.error(`[UPLOAD] ERROR id=${id} type=${type}`, err);
-      if (err.name !== 'CanceledError' && err.name !== 'AbortError') {
-        setItems(prev => prev.map(it => it.id === id ? { ...it, status: 'error' } : it));
-      }
-    } finally {
-      aborters.current.delete(id);
-    }
-  }, []);
+  }, [resetTrigger, cancelUpload]);
 
   const handleRemove = (id) => {
-    const ctrl = aborters.current.get(id);
-    if (ctrl) { ctrl.abort(); aborters.current.delete(id); }
-    setItems(prev => {
-      const item = prev.find(i => i.id === id);
-      if (item?.preview?.startsWith('blob:')) URL.revokeObjectURL(item.preview);
-      if (item?.uploadedUrl) {
-        postsAPI.deleteMedia(item.uploadedUrl).catch(() => {});
-      }
-      return prev.filter(i => i.id !== id);
-    });
+    cancelUpload(id);
+    setItems(prev => prev.filter(i => i.id !== id));
   };
 
   const handleImageSelect = (e) => {
@@ -128,25 +124,32 @@ const MediaUpload = ({ onMediaChange, resetTrigger, imageInputRef, gifInputRef, 
     e.target.value = '';
     if (selected.length === 0) return;
 
-    // Создаём items и blob URL ВНЕ setItems — side effects нельзя в updater
-    const newItems = selected.map(file => ({
-      id:          `${Date.now()}_${Math.random()}`,
-      file,
-      type:        'image',
-      preview:     URL.createObjectURL(file),
-      progress:    0,
-      status:      'uploading',
-      uploadedUrl: null,
-      filename:    file.name,
-      thumb:       null,
-    }));
-
     setItems(prev => {
       const cap = 4 - prev.length;
-      return cap > 0 ? [...prev, ...newItems.slice(0, cap)] : prev;
-    });
+      if (cap <= 0) return prev;
 
-    newItems.forEach(item => startUpload(item.id, item.file, 'image'));
+      const newItems = selected.slice(0, cap).map(file => {
+        const id = `${Date.now()}_${Math.random()}`;
+        const preview = URL.createObjectURL(file);
+
+        // Запускаем загрузку через глобальный контекст
+        startUpload(id, file, 'image', contextKey);
+
+        return {
+          id,
+          file,
+          type: 'image',
+          preview,
+          progress: 0,
+          status: 'uploading',
+          uploadedUrl: null,
+          filename: file.name,
+          thumb: null,
+        };
+      });
+
+      return [...prev, ...newItems];
+    });
   };
 
   const handleGifSelect = (e) => {
@@ -155,13 +158,26 @@ const MediaUpload = ({ onMediaChange, resetTrigger, imageInputRef, gifInputRef, 
     if (!file) return;
     if (file.size > 10 * 1024 * 1024) { alert('GIF превышает 10MB'); return; }
 
-    const id      = `${Date.now()}_${Math.random()}`;
-    const preview = URL.createObjectURL(file);
     setItems(prev => {
       if (prev.length >= 4) return prev;
-      return [...prev, { id, file, type: 'gif', preview, progress: 0, status: 'uploading', uploadedUrl: null, filename: file.name }];
+
+      const id = `${Date.now()}_${Math.random()}`;
+      const preview = URL.createObjectURL(file);
+
+      // Запускаем загрузку через глобальный контекст
+      startUpload(id, file, 'gif', contextKey);
+
+      return [...prev, {
+        id,
+        file,
+        type: 'gif',
+        preview,
+        progress: 0,
+        status: 'uploading',
+        uploadedUrl: null,
+        filename: file.name,
+      }];
     });
-    startUpload(id, file, 'gif');
   };
 
   const handleVideoSelect = (e) => {
@@ -169,13 +185,26 @@ const MediaUpload = ({ onMediaChange, resetTrigger, imageInputRef, gifInputRef, 
     e.target.value = '';
     if (!file) return;
 
-    const id      = `${Date.now()}_${Math.random()}`;
-    const preview = URL.createObjectURL(file);
     setItems(prev => {
       if (prev.length >= 4) return prev;
-      return [...prev, { id, file, type: 'video', preview, progress: 0, status: 'uploading', uploadedUrl: null, filename: file.name }];
+
+      const id = `${Date.now()}_${Math.random()}`;
+      const preview = URL.createObjectURL(file);
+
+      // Запускаем загрузку через глобальный контекст
+      startUpload(id, file, 'video', contextKey);
+
+      return [...prev, {
+        id,
+        file,
+        type: 'video',
+        preview,
+        progress: 0,
+        status: 'uploading',
+        uploadedUrl: null,
+        filename: file.name,
+      }];
     });
-    startUpload(id, file, 'video');
   };
 
   const uploadingItems = items.filter(it => it.status === 'uploading' || it.status === 'error');

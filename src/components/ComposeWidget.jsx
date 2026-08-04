@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { postsAPI } from '../api/api';
 import { useAuth } from '../context/AuthContext';
+import { useUpload } from '../context/UploadContext';
 import MediaUpload from './MediaUpload';
 import '../styles/ComposeWidget.css';
 
@@ -14,7 +15,9 @@ function loadDraft(key) {
 
 const ComposeWidget = ({ parentPost = null, onSuccess, placeholder, submitLabel }) => {
   const { user, t } = useAuth();
+  const { clearCompleted } = useUpload();
   const draftKey = !parentPost && user ? `compose_draft_${user.id}` : null;
+  const contextKey = parentPost ? `comment_${parentPost.id}` : 'compose_main';
   const draft = useMemo(() => loadDraft(draftKey), []); // eslint-disable-line
 
   const [content, setContent]       = useState(draft.content || '');
@@ -60,7 +63,17 @@ const ComposeWidget = ({ parentPost = null, onSuccess, placeholder, submitLabel 
     } else {
       localStorage.removeItem(draftKey);
     }
-  }, [content, mediaFiles, draftKey]);
+
+    // Очищаем завершенные загрузки из глобального контекста для главной страницы
+    // Они уже сохранены в localStorage и будут восстановлены из initialItems
+    if (!parentPost && uploadedMedia.length > 0) {
+      // Используем небольшую задержку, чтобы не очищать сразу
+      const timer = setTimeout(() => {
+        clearCompleted(contextKey);
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [content, mediaFiles, draftKey, parentPost, contextKey, clearCompleted]);
 
   // Cleanup: удаляем загруженные медиа при размонтировании (только для комментариев)
   useEffect(() => {
@@ -149,6 +162,7 @@ const ComposeWidget = ({ parentPost = null, onSuccess, placeholder, submitLabel 
           gifInputRef={gifInputRef}
           videoInputRef={videoInputRef}
           initialItems={initialMediaItems}
+          contextKey={contextKey}
         />
         {error && <div className="compose-widget-error">{error}</div>}
         <div className="compose-widget-footer">

@@ -11,7 +11,40 @@ require_once __DIR__ . '/api/classes/Database.php';
 $db = Database::getInstance();
 
 try {
-    // Получаем записи старше 48 часов
+    // 1. Удаляем файлы помеченные для удаления (deleted_at IS NOT NULL)
+    $markedForDeletion = $db->query(
+        "SELECT id, file_path, media_type FROM temp_uploads WHERE deleted_at IS NOT NULL"
+    );
+
+    $basePath = realpath(__DIR__);
+    $deleted = 0;
+
+    foreach ($markedForDeletion as $upload) {
+        $path = $upload['file_path'];
+        $mediaType = $upload['media_type'];
+
+        if ($mediaType === 'video') {
+            $dir = $basePath . '/uploads/videos/' . $path;
+            if (is_dir($dir)) {
+                deleteDirectory($dir);
+                echo "Deleted marked video directory: {$dir}\n";
+                $deleted++;
+            }
+        } else {
+            if (strpos($path, '/') === 0) {
+                $fullPath = $basePath . $path;
+                if (file_exists($fullPath)) {
+                    unlink($fullPath);
+                    echo "Deleted marked file: {$fullPath}\n";
+                    $deleted++;
+                }
+            }
+        }
+
+        $db->query("DELETE FROM temp_uploads WHERE id = ?", [$upload['id']]);
+    }
+
+    // 2. Получаем записи старше 48 часов
     $cutoff = date('Y-m-d H:i:s', strtotime('-48 hours'));
     $result = $db->query(
         "SELECT id, file_path, media_type FROM temp_uploads WHERE created_at < ?",
@@ -19,35 +52,36 @@ try {
     );
     $oldUploads = $result->fetchAll();
 
-    $basePath = realpath(__DIR__);
-    $deleted = 0;
-
     foreach ($oldUploads as $upload) {
         $filePath = $upload['file_path'];
+        $mediaType = $upload['media_type'];
 
-        // HLS-видео: удалить директорию
-        if (preg_match('#^/uploads/videos/([a-f0-9]+)/master\.m3u8$#', $filePath, $m)) {
-            $dir = $basePath . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR
-                             . 'videos'  . DIRECTORY_SEPARATOR . $m[1];
-            if (is_dir($dir)) {
-                deleteDirectory($dir);
-                echo "Deleted HLS directory: {$dir}\n";
-                $deleted++;
+        if ($mediaType === 'video') {
+            if (preg_match('/^[a-f0-9]+$/', $filePath)) {
+                $dir = $basePath . '/uploads/videos/' . $filePath;
+                if (is_dir($dir)) {
+                    deleteDirectory($dir);
+                    echo "Deleted old video directory: {$dir}\n";
+                    $deleted++;
+                }
+            } elseif (preg_match('#^/uploads/videos/([a-f0-9]+)/master\.m3u8$#', $filePath, $m)) {
+                $dir = $basePath . '/uploads/videos/' . $m[1];
+                if (is_dir($dir)) {
+                    deleteDirectory($dir);
+                    echo "Deleted old HLS directory: {$dir}\n";
+                    $deleted++;
+                }
             }
         } else {
-            // Одиночный файл
-            $fullPath = $basePath . DIRECTORY_SEPARATOR . ltrim(str_replace('/', DIRECTORY_SEPARATOR, $filePath), DIRECTORY_SEPARATOR);
+            $fullPath = $basePath . $filePath;
             if (file_exists($fullPath)) {
                 unlink($fullPath);
                 echo "Deleted file: {$fullPath}\n";
                 $deleted++;
             }
 
-            // Миниатюра для изображений
             if ($upload['media_type'] === 'image' && strpos($filePath, '/uploads/posts/') === 0) {
-                $thumbPath = $basePath . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR
-                                       . 'posts'   . DIRECTORY_SEPARATOR . 'thumbs' . DIRECTORY_SEPARATOR
-                                       . basename($filePath);
+                $thumbPath = $basePath . '/uploads/posts/thumbs/' . basename($filePath);
                 if (file_exists($thumbPath)) {
                     unlink($thumbPath);
                     echo "Deleted thumb: {$thumbPath}\n";
@@ -69,7 +103,7 @@ try {
 function deleteDirectory($dir) {
     if (!is_dir($dir)) return;
     foreach (array_diff(scandir($dir), ['.', '..']) as $item) {
-        $path = $dir . DIRECTORY_SEPARATOR . $item;
+        $path = $dir . '/' . $item;
         is_dir($path) ? deleteDirectory($path) : unlink($path);
     }
     rmdir($dir);

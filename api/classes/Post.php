@@ -270,19 +270,16 @@ class Post {
 
                 // HLS-видео: /uploads/videos/{uuid}/master.m3u8 → удалить директорию
                 if (preg_match('#^/uploads/videos/([a-f0-9]+)/master\.m3u8$#', $url, $m)) {
-                    $dir = $basePath . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR
-                                     . 'videos'  . DIRECTORY_SEPARATOR . $m[1];
+                    $dir = $basePath . '/uploads/videos/' . $m[1];
                     if (is_dir($dir)) {
                         $this->deleteDirectoryRecursive($dir);
                     }
                 } else {
-                    // Одиночный файл (изображение, GIF, старое видео)
-                    $filePath = $basePath . DIRECTORY_SEPARATOR . ltrim(str_replace('/', DIRECTORY_SEPARATOR, $url), DIRECTORY_SEPARATOR);
+                    $filePath = $basePath . $url;
                     if (file_exists($filePath)) unlink($filePath);
 
-                    // Миниатюра для изображений
                     if (!empty($media['thumb_url'])) {
-                        $thumbPath = $basePath . DIRECTORY_SEPARATOR . ltrim(str_replace('/', DIRECTORY_SEPARATOR, $media['thumb_url']), DIRECTORY_SEPARATOR);
+                        $thumbPath = $basePath . $media['thumb_url'];
                         if (file_exists($thumbPath)) unlink($thumbPath);
                     }
                 }
@@ -302,7 +299,7 @@ class Post {
     private function deleteDirectoryRecursive($dir) {
         if (!is_dir($dir)) return;
         foreach (array_diff(scandir($dir), ['.', '..']) as $item) {
-            $path = $dir . DIRECTORY_SEPARATOR . $item;
+            $path = $dir . '/' . $item;
             is_dir($path) ? $this->deleteDirectoryRecursive($path) : unlink($path);
         }
         rmdir($dir);

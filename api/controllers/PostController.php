@@ -243,10 +243,11 @@ class PostController {
         // Регистрируем все изображения как временные загрузки
         try {
             $db = Database::getInstance();
+            $trackingId = $_SERVER['HTTP_X_TRACKING_ID'] ?? null;
             foreach ($uploadedUrls as $item) {
                 $db->query(
-                    "INSERT INTO temp_uploads (user_id, file_path, media_type) VALUES (?, ?, ?)",
-                    [$authUser['userId'], $item['url'], 'image']
+                    "INSERT INTO temp_uploads (user_id, file_path, media_type, tracking_id) VALUES (?, ?, ?, ?)",
+                    [$authUser['userId'], $item['url'], 'image', $trackingId]
                 );
             }
         } catch (Exception $e) {}
@@ -349,7 +350,7 @@ class PostController {
         }
 
         $baseName = 'post_gif_' . time() . '_' . uniqid();
-        $gifPath = $uploadDir . $baseName . '.gif';
+        $gifPath  = $uploadDir . $baseName . '.gif';
 
         if (!move_uploaded_file($file['tmp_name'], $gifPath)) {
             http_response_code(500);
@@ -357,29 +358,114 @@ class PostController {
             exit();
         }
 
-        // Конвертация GIF в MP4
-        $mp4Path = $uploadDir . $baseName . '.mp4';
-        $converted = $this->convertGifToMp4($gifPath, $mp4Path);
-
-        if ($converted) {
-            // Удаляем оригинальный GIF
-            unlink($gifPath);
-            $url = '/uploads/gifs/' . $baseName . '.mp4';
-        } else {
-            // Если конвертация не удалась, оставляем GIF
-            $url = '/uploads/gifs/' . $baseName . '.gif';
-        }
-
-        // Регистрируем как временную загрузку
+        // Регистрируем СРАЗУ после сохранения (до конвертации), чтобы отмена работала корректно
+        $trackingId = $_SERVER['HTTP_X_TRACKING_ID'] ?? null;
+        $tempPath   = '/uploads/gifs/' . $baseName . '.gif'; // начальный путь, обновим после конвертации
         try {
             $db = Database::getInstance();
             $db->query(
-                "INSERT INTO temp_uploads (user_id, file_path, media_type) VALUES (?, ?, ?)",
-                [$authUser['userId'], $url, 'gif']
+                "INSERT INTO temp_uploads (user_id, file_path, media_type, tracking_id) VALUES (?, ?, ?, ?)",
+                [$authUser['userId'], $tempPath, 'gif', $trackingId]
             );
         } catch (Exception $e) {}
 
+        // Конвертация GIF в MP4
+        $mp4Path   = $uploadDir . $baseName . '.mp4';
+        $converted = $this->convertGifToMp4($gifPath, $mp4Path);
+
+        if ($converted) {
+            unlink($gifPath);
+            $url = '/uploads/gifs/' . $baseName . '.mp4';
+            // Обновляем путь в БД на mp4
+            try {
+                $db = Database::getInstance();
+                $db->query(
+                    "UPDATE temp_uploads SET file_path = ? WHERE tracking_id = ? AND user_id = ?",
+                    [$url, $trackingId, $authUser['userId']]
+                );
+            } catch (Exception $e) {}
+        } else {
+            $url = '/uploads/gifs/' . $baseName . '.gif';
+        }
+
         $this->sendResponse(['url' => $url], 201);
+    }
+
+    /**
+     * DELETE /upload/cancel — отмена загрузки по tracking ID
+     * Убивает FFmpeg процесс и немедленно удаляет файлы (для Linux)
+     */
+    public function cancelUpload() {
+        $authUser = AuthMiddleware::requireAuth();
+        $input = $this->getInput();
+        $trackingId = trim($input['tracking_id'] ?? '');
+
+        if (empty($trackingId) || !preg_match('/^[a-zA-Z0-9._\-]{1,128}$/', $trackingId)) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Invalid tracking ID']);
+            exit();
+        }
+
+        try {
+            $db = Database::getInstance();
+
+            // Находим загрузку
+            $uploads = $db->query(
+                "SELECT file_path, media_type FROM temp_uploads WHERE user_id = ? AND tracking_id = ?",
+                [$authUser['userId'], $trackingId]
+            );
+
+            if (empty($uploads)) {
+                $this->sendResponse(['ok' => true, 'deleted' => 0]);
+                return;
+            }
+
+            $deleted = 0;
+            $base = realpath(__DIR__ . '/../../');
+
+            foreach ($uploads as $upload) {
+                $path = $upload['file_path'];
+                $mediaType = $upload['media_type'];
+
+                // Убиваем FFmpeg процесс для видео
+                if ($mediaType === 'video') {
+                    // Убить FFmpeg обрабатывающий этот UUID
+                    exec("pkill -f 'ffmpeg.*{$path}' 2>&1");
+
+                    // Удаляем директорию
+                    $dir = $base . '/uploads/videos/' . $path;
+                    if (is_dir($dir)) {
+                        $this->deleteDirectory($dir);
+                        $deleted++;
+                    }
+                if ($mediaType === 'image') {
+                    $filePath = $base . $path;
+                    if (file_exists($filePath)) {
+                        unlink($filePath);
+                        $deleted++;
+                    }
+                    // Удаляем thumbnail
+                    $thumb = $base . '/uploads/posts/thumbs/' . basename($path);
+                    if (file_exists($thumb)) unlink($thumb);
+                } else {
+                    if (strpos($path, '/') === 0) {
+                        $filePath = $base . $path;
+                        if (file_exists($filePath)) {
+                            unlink($filePath);
+                            $deleted++;
+                        }
+                    }
+                }
+
+                // Удаляем запись из БД
+                $db->query("DELETE FROM temp_uploads WHERE user_id = ? AND tracking_id = ?", [$authUser['userId'], $trackingId]);
+            }
+
+            $this->sendResponse(['ok' => true, 'deleted' => $deleted]);
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode(['error' => 'Failed to cancel upload: ' . $e->getMessage()]);
+        }
     }
 
     /**
@@ -402,24 +488,31 @@ class PostController {
 
         // HLS-видео: /uploads/videos/{uuid}/master.m3u8 → удалить директорию uuid/
         if (preg_match('#^/uploads/videos/([a-f0-9]+)/master\.m3u8$#', $url, $m)) {
-            $dir = $base . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR
-                         . 'videos'  . DIRECTORY_SEPARATOR . $m[1];
+            $dir = $base . '/uploads/videos/' . $m[1];
             if (is_dir($dir)) $this->deleteDirectory($dir);
+            // Удаляем запись из temp_uploads
+            try {
+                $db = Database::getInstance();
+                $db->query("DELETE FROM temp_uploads WHERE file_path = ?", [$m[1]]);
+            } catch (Exception $e) {}
             $this->sendResponse(['ok' => true]);
         }
 
-        // Одиночный файл (старые .mp4, картинки, GIF)
-        $filePath = $base . DIRECTORY_SEPARATOR . ltrim(str_replace('/', DIRECTORY_SEPARATOR, $url), DIRECTORY_SEPARATOR);
+        // Одиночный файл (картинки, GIF)
+        $filePath = $base . $url;
         if (file_exists($filePath)) {
             unlink($filePath);
-            // Миниатюра для изображений постов
             if (strpos($url, '/uploads/posts/') === 0) {
-                $thumb = $base . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR
-                               . 'posts'   . DIRECTORY_SEPARATOR . 'thumbs' . DIRECTORY_SEPARATOR
-                               . basename($url);
+                $thumb = $base . '/uploads/posts/thumbs/' . basename($url);
                 if (file_exists($thumb)) unlink($thumb);
             }
         }
+
+        // Удаляем запись из temp_uploads
+        try {
+            $db = Database::getInstance();
+            $db->query("DELETE FROM temp_uploads WHERE file_path = ?", [$url]);
+        } catch (Exception $e) {}
 
         $this->sendResponse(['ok' => true]);
     }
@@ -430,7 +523,7 @@ class PostController {
     private function deleteDirectory($dir) {
         if (!is_dir($dir)) return;
         foreach (array_diff(scandir($dir), ['.', '..']) as $item) {
-            $path = $dir . DIRECTORY_SEPARATOR . $item;
+            $path = $dir . '/' . $item;
             is_dir($path) ? $this->deleteDirectory($path) : unlink($path);
         }
         rmdir($dir);
@@ -440,10 +533,23 @@ class PostController {
      * POST /upload/post-video — загрузка видео с HLS-транскодингом (360p/720p/1080p)
      */
     public function uploadPostVideo() {
-        // Транскодинг может занять время — снимаем лимит
-        set_time_limit(0);
+        set_time_limit(600); // 10 минут максимум на конвертацию
 
         $authUser = AuthMiddleware::requireAuth();
+
+        // Rate limiting: не более 2 одновременных конвертаций на пользователя
+        try {
+            $db = Database::getInstance();
+            $active = $db->query(
+                "SELECT COUNT(*) as cnt FROM temp_uploads WHERE user_id = ? AND media_type = 'video' AND created_at > NOW() - INTERVAL '10 minutes'",
+                [$authUser['userId']]
+            );
+            if ((int)($active[0]['cnt'] ?? 0) >= 2) {
+                http_response_code(429);
+                echo json_encode(['error' => 'Too many concurrent video uploads. Please wait.']);
+                exit();
+            }
+        } catch (Exception $e) {}
 
         if (!isset($_FILES['video']) || empty($_FILES['video']['name'])) {
             http_response_code(400);
@@ -498,6 +604,19 @@ class PostController {
             exit();
         }
 
+        $url = '/uploads/videos/' . $uuid . '/master.m3u8';
+
+        // Получаем tracking_id из заголовка и регистрируем СРАЗУ после сохранения файла
+        // Сохраняем только UUID для простого удаления всей папки
+        $trackingId = $_SERVER['HTTP_X_TRACKING_ID'] ?? null;
+        try {
+            $db = Database::getInstance();
+            $db->query(
+                "INSERT INTO temp_uploads (user_id, file_path, media_type, tracking_id) VALUES (?, ?, ?, ?)",
+                [$authUser['userId'], $uuid, 'video', $trackingId]
+            );
+        } catch (Exception $e) {}
+
         // Определяем размеры оригинала, чтобы не апскейлить
         $info           = $this->getVideoInfo($originalPath);
         $originalHeight = $info['height'];
@@ -510,15 +629,16 @@ class PostController {
             1080 => ['bitrate' => '4500k', 'audioBitrate' => '192k', 'bandwidth' => 4692000, 'resolution' => '1920x1080'],
         ];
 
-        $generated = [];
-        foreach ($qualityLevels as $height => $params) {
-            // Не апскейлируем — пропускаем качество выше оригинала
-            if ($height > $originalHeight + 60) continue;
-            $ok = $this->transcodeToHLS($originalPath, $videoDir, $height, $params, $hasAudio);
-            if ($ok) $generated[$height] = $params;
+        $levelsToGenerate = array_filter($qualityLevels, fn($h) => $h <= $originalHeight + 60, ARRAY_FILTER_USE_KEY);
+        if (empty($levelsToGenerate)) {
+            $levelsToGenerate = [360 => $qualityLevels[360]];
         }
 
-        // Если ни один уровень не сгенерирован (очень маленькое видео), делаем 360p
+        // Запускаем все конвертации параллельно
+        $processes = $this->startParallelTranscode($originalPath, $videoDir, $levelsToGenerate, $hasAudio);
+        $generated = $this->waitForTranscode($processes, $levelsToGenerate, $videoDir);
+
+        // Fallback: если параллельная не сработала, пробуем 360p последовательно
         if (empty($generated)) {
             $ok = $this->transcodeToHLS($originalPath, $videoDir, 360, $qualityLevels[360], $hasAudio);
             if ($ok) $generated[360] = $qualityLevels[360];
@@ -532,17 +652,6 @@ class PostController {
 
         $this->generateMasterPlaylist($videoDir . 'master.m3u8', $generated);
 
-        $url = '/uploads/videos/' . $uuid . '/master.m3u8';
-
-        // Регистрируем как временную загрузку (удалится через 48ч если пост не создан)
-        try {
-            $db = Database::getInstance();
-            $db->query(
-                "INSERT INTO temp_uploads (user_id, file_path, media_type) VALUES (?, ?, ?)",
-                [$authUser['userId'], $url, 'video']
-            );
-        } catch (Exception $e) {}
-
         $this->sendResponse([
             'url'      => $url,
             'filename' => $file['name'],
@@ -553,10 +662,11 @@ class PostController {
      * Получить размеры видео и наличие аудиодорожки через ffprobe
      */
     private function getVideoInfo($filePath) {
-        $ffprobe = 'C:/ffmpeg/bin/ffprobe.exe';
+        $ffprobe = 'ffprobe';
         $default = ['width' => 1920, 'height' => 1080, 'has_audio' => true];
 
-        if (!file_exists($ffprobe)) return $default;
+        exec('which ffprobe', $out, $code);
+        if ($code !== 0) return $default;
 
         $cmd = sprintf(
             '%s -v quiet -print_format json -show_streams %s 2>&1',
@@ -579,29 +689,16 @@ class PostController {
         return $result;
     }
 
-    /**
-     * Транскодировать видео в HLS-сегменты заданного качества
-     * Использует proc_open с массивом аргументов — обходит cmd.exe,
-     * поэтому %03d в шаблоне сегментов доходит до FFmpeg без искажений.
-     */
-    private function transcodeToHLS($inputPath, $videoDir, $height, $params, $hasAudio) {
-        $ffmpeg = 'C:/ffmpeg/bin/ffmpeg.exe';
-        if (!file_exists($ffmpeg)) return false;
-
-        $outDir = $videoDir . $height . 'p/';
-        if (!is_dir($outDir)) mkdir($outDir, 0755, true);
-
+    private function buildFFmpegArgs($inputPath, $height, $params, $hasAudio, $outDir) {
         $bitrateNum = (int)$params['bitrate'];
         $bufsize    = ($bitrateNum * 2) . 'k';
-
-        $audioArgs = $hasAudio
+        $audioArgs  = $hasAudio
             ? ['-c:a', 'aac', '-b:a', $params['audioBitrate'], '-ar', '44100', '-ac', '2']
             : ['-an'];
 
-        // Передаём args массивом — proc_open вызывает FFmpeg напрямую, без cmd.exe
-        $args = array_merge(
+        return array_merge(
             [
-                $ffmpeg, '-i', $inputPath,
+                'ffmpeg', '-i', $inputPath,
                 '-vf', "scale=-2:{$height}",
                 '-c:v', 'libx264', '-b:v', $params['bitrate'],
                 '-maxrate', $params['bitrate'], '-bufsize', $bufsize,
@@ -615,9 +712,15 @@ class PostController {
                 $outDir . 'stream.m3u8', '-y',
             ]
         );
+    }
 
+    private function transcodeToHLS($inputPath, $videoDir, $height, $params, $hasAudio) {
+        $outDir = $videoDir . $height . 'p/';
+        if (!is_dir($outDir)) mkdir($outDir, 0755, true);
+
+        $args        = $this->buildFFmpegArgs($inputPath, $height, $params, $hasAudio, $outDir);
         $descriptors = [['pipe', 'r'], ['pipe', 'w'], ['pipe', 'w']];
-        $process = proc_open($args, $descriptors, $pipes);
+        $process     = proc_open($args, $descriptors, $pipes);
 
         if (!is_resource($process)) {
             error_log("proc_open failed for HLS {$height}p");
@@ -625,7 +728,7 @@ class PostController {
         }
 
         fclose($pipes[0]);
-        $stderr = stream_get_contents($pipes[2]);
+        $stderr     = stream_get_contents($pipes[2]);
         fclose($pipes[1]);
         fclose($pipes[2]);
         $returnCode = proc_close($process);
@@ -635,6 +738,73 @@ class PostController {
             return false;
         }
         return file_exists($outDir . 'stream.m3u8');
+    }
+
+    private function startParallelTranscode($inputPath, $videoDir, $levels, $hasAudio) {
+        $processes = [];
+        foreach ($levels as $height => $params) {
+            $outDir = $videoDir . $height . 'p/';
+            if (!is_dir($outDir)) mkdir($outDir, 0755, true);
+
+            $args        = $this->buildFFmpegArgs($inputPath, $height, $params, $hasAudio, $outDir);
+            $descriptors = [['pipe', 'r'], ['pipe', 'w'], ['pipe', 'w']];
+            $process     = proc_open($args, $descriptors, $pipes);
+
+            if (is_resource($process)) {
+                fclose($pipes[0]);
+                $processes[$height] = ['proc' => $process, 'pipes' => $pipes];
+            } else {
+                error_log("proc_open failed for HLS {$height}p");
+            }
+        }
+        return $processes;
+    }
+
+    private function waitForTranscode($processes, $levels, $videoDir) {
+        $generated = [];
+        $timeout   = 580; // чуть меньше set_time_limit
+        $start     = time();
+
+        while (!empty($processes)) {
+            if (time() - $start > $timeout) {
+                // Убиваем зависшие процессы
+                foreach ($processes as $height => $entry) {
+                    proc_terminate($entry['proc']);
+                    fclose($entry['pipes'][1]);
+                    fclose($entry['pipes'][2]);
+                    proc_close($entry['proc']);
+                    error_log("HLS transcode {$height}p killed by timeout");
+                }
+                break;
+            }
+
+            // Собираем stderr-потоки для stream_select
+            $read = array_column(array_values($processes), 'pipes');
+            $read = array_map(fn($p) => $p[2], $read);
+            $write = $except = null;
+
+            if (!stream_select($read, $write, $except, 0, 200000)) {
+                continue; // 200ms пауза, потом проверяем снова
+            }
+
+            foreach ($processes as $height => $entry) {
+                $status = proc_get_status($entry['proc']);
+                if (!$status['running']) {
+                    fclose($entry['pipes'][1]);
+                    fclose($entry['pipes'][2]);
+                    $code = proc_close($entry['proc']);
+                    unset($processes[$height]);
+
+                    if ($code === 0 && file_exists($videoDir . $height . 'p/stream.m3u8')) {
+                        $generated[$height] = $levels[$height];
+                    } else {
+                        error_log("HLS transcode {$height}p failed (exit code {$code})");
+                    }
+                }
+            }
+        }
+
+        return $generated;
     }
 
     /**
@@ -655,12 +825,11 @@ class PostController {
     /**
      */
     private function convertGifToMp4($gifPath, $mp4Path) {
-        // Полный путь к FFmpeg
-        $ffmpegPath = 'C:/ffmpeg/bin/ffmpeg.exe';
+        $ffmpegPath = 'ffmpeg';
 
-        // Проверка существования FFmpeg
-        if (!file_exists($ffmpegPath)) {
-            error_log("FFmpeg not found at: $ffmpegPath");
+        exec('which ffmpeg', $out, $code);
+        if ($code !== 0) {
+            error_log("FFmpeg not found in PATH");
             return false;
         }
 

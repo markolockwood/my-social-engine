@@ -53,28 +53,38 @@ export const postsAPI = {
   getReplies: (id) => api.get(`/posts/${id}/replies`),
   incrementView: (id) => api.post(`/posts/${id}/view`),
   deleteMedia: (url) => api.delete('/upload/media', { data: { url } }),
+  cancelUpload: (trackingId) => api.delete('/upload/cancel', { data: { tracking_id: trackingId } }),
   uploadImages: (files, config = {}) => {
     const form = new FormData();
     files.forEach(file => form.append('images[]', file));
     return api.post('/upload/post-images', form, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-      ...config
+      ...config,
+      headers: {
+        'Content-Type': 'multipart/form-data',
+        ...(config.headers || {})
+      }
     });
   },
   uploadGif: (file, config = {}) => {
     const form = new FormData();
     form.append('gif', file);
     return api.post('/upload/post-gif', form, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-      ...config
+      ...config,
+      headers: {
+        'Content-Type': 'multipart/form-data',
+        ...(config.headers || {})
+      }
     });
   },
   uploadVideo: (file, config = {}) => {
     const form = new FormData();
     form.append('video', file);
     return api.post('/upload/post-video', form, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-      ...config
+      ...config,
+      headers: {
+        'Content-Type': 'multipart/form-data',
+        ...(config.headers || {})
+      }
     });
   }
 };

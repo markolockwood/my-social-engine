@@ -48,6 +48,7 @@ try {
     $router->post('/upload/post-gif', 'PostController', 'uploadPostGif');
     $router->post('/upload/post-video', 'PostController', 'uploadPostVideo');
     $router->delete('/upload/media', 'PostController', 'deleteUploadedMedia');
+    $router->delete('/upload/cancel', 'PostController', 'cancelUpload');
 
     // === USER ROUTES ===
     $router->get('/users/{username}', 'UserController', 'profile');
