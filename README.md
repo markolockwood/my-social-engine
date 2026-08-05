@@ -1,6 +1,6 @@
 # MyTwit - Социальная сеть
 
-Готовый скрипт социальной сети в стиле Twitter на React, PHP 8.0 и PostgreSQL. Разворачивается на любом локальном или боевом сервере с Apache. На данный момент установщика нет, всё полностью вручную.
+Готовый скрипт социальной сети в стиле Twitter на React, PHP 8.1 и PostgreSQL. Разворачивается на любом локальном или боевом сервере с Nginx. На данный момент установщика нет, всё полностью вручную.
 
 ## Changelog
 [Changelog](CHANGELOG.md)
@@ -53,10 +53,11 @@
 - Система i18n без внешних библиотек
 
 ### Backend
-- PHP 8.0
+- PHP 8.1
 - PostgreSQL 14+
 - JWT для аутентификации
 - REST API
+- Nginx веб-сервер
 
 ## Установка
 
@@ -114,16 +115,80 @@ return [
 ];
 ```
 
-### 4. Настройка веб-сервера
+### 4. Настройка веб-сервера (Nginx)
 
-Проект работает через Apache. В корне уже есть `.htaccess`, который обеспечивает:
-- маршрутизацию `/api/` к PHP
-- раздачу статических ассетов из `dist/assets/`
-- SPA-роутинг — все остальные пути возвращают `dist/index.html`
+Проект работает через Nginx на Linux (WSL). Создайте конфигурационный файл для вашего домена.
 
-Убедитесь, что для вашего домена включён `mod_rewrite` и `AllowOverride All`.
+Пример конфигурации Nginx (например, `/etc/nginx/sites-available/mytwit.com`):
 
-Разместите файлы проекта в папке вашего домена и убедитесь, что веб-сервер указывает на неё как на корневую директорию.
+```nginx
+server {
+    listen 80;
+    server_name mytwit.com www.mytwit.com;
+    root /www/wwwroot/mytwit.com;
+    index index.html index.php;
+
+    # Логи
+    access_log /var/log/nginx/mytwit.access.log;
+    error_log /var/log/nginx/mytwit.error.log;
+
+    # API запросы к PHP
+    location /api/ {
+        try_files $uri $uri/ /api/index.php?$query_string;
+        
+        location ~ \.php$ {
+            fastcgi_pass unix:/run/php/php8.1-fpm.sock;
+            fastcgi_index index.php;
+            fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+            include fastcgi_params;
+        }
+    }
+
+    # Статические ассеты из dist/assets/
+    location /assets/ {
+        alias /www/wwwroot/mytwit.com/dist/assets/;
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+
+    # Загруженные файлы
+    location /uploads/ {
+        alias /www/wwwroot/mytwit.com/uploads/;
+        expires 30d;
+        add_header Cache-Control "public";
+    }
+
+    # SPA роутинг — все остальные пути возвращают dist/index.html
+    location / {
+        try_files $uri $uri/ /dist/index.html;
+    }
+
+    # Запретить доступ к служебным файлам
+    location ~ /\. {
+        deny all;
+    }
+}
+```
+
+После создания конфигурации:
+
+```bash
+# Создайте символическую ссылку
+sudo ln -s /etc/nginx/sites-available/mytwit.com /etc/nginx/sites-enabled/
+
+# Проверьте конфигурацию
+sudo nginx -t
+
+# Перезапустите Nginx
+sudo systemctl restart nginx
+```
+
+Убедитесь, что PHP-FPM запущен:
+
+```bash
+sudo systemctl status php8.1-fpm
+sudo systemctl start php8.1-fpm  # если не запущен
+```
 
 ### 5. Сборка и запуск
 

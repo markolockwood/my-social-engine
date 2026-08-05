@@ -10,6 +10,12 @@ require_once __DIR__ . '/../middleware/RateLimitMiddleware.php';
  */
 class PostController {
 
+    private $config;
+
+    public function __construct() {
+        $this->config = require __DIR__ . '/../../config/config.php';
+    }
+
     /**
      * GET /posts — лента постов (с пагинацией)
      */
@@ -250,7 +256,9 @@ class PostController {
                     [$authUser['userId'], $item['url'], 'image', $trackingId]
                 );
             }
-        } catch (Exception $e) {}
+        } catch (Exception $e) {
+            error_log("Failed to register image uploads in temp_uploads: " . $e->getMessage());
+        }
 
         $this->sendResponse(['urls' => $uploadedUrls], 201);
     }
@@ -367,7 +375,9 @@ class PostController {
                 "INSERT INTO temp_uploads (user_id, file_path, media_type, tracking_id) VALUES (?, ?, ?, ?)",
                 [$authUser['userId'], $tempPath, 'gif', $trackingId]
             );
-        } catch (Exception $e) {}
+        } catch (Exception $e) {
+            error_log("Failed to register gif upload in temp_uploads: " . $e->getMessage());
+        }
 
         // Конвертация GIF в MP4
         $mp4Path   = $uploadDir . $baseName . '.mp4';
@@ -383,7 +393,9 @@ class PostController {
                     "UPDATE temp_uploads SET file_path = ? WHERE tracking_id = ? AND user_id = ?",
                     [$url, $trackingId, $authUser['userId']]
                 );
-            } catch (Exception $e) {}
+            } catch (Exception $e) {
+                error_log("Failed to update gif path in temp_uploads: " . $e->getMessage());
+            }
         } else {
             $url = '/uploads/gifs/' . $baseName . '.gif';
         }
@@ -410,10 +422,11 @@ class PostController {
             $db = Database::getInstance();
 
             // Находим загрузку
-            $uploads = $db->query(
+            $stmt = $db->query(
                 "SELECT file_path, media_type FROM temp_uploads WHERE user_id = ? AND tracking_id = ?",
                 [$authUser['userId'], $trackingId]
             );
+            $uploads = $stmt->fetchAll();
 
             if (empty($uploads)) {
                 $this->sendResponse(['ok' => true, 'deleted' => 0]);
@@ -421,45 +434,19 @@ class PostController {
             }
 
             $deleted = 0;
-            $base = realpath(__DIR__ . '/../../');
 
             foreach ($uploads as $upload) {
                 $path = $upload['file_path'];
                 $mediaType = $upload['media_type'];
 
-                // Убиваем FFmpeg процесс для видео
-                if ($mediaType === 'video') {
-                    // Убить FFmpeg обрабатывающий этот UUID
-                    exec("pkill -f 'ffmpeg.*{$path}' 2>&1");
-
-                    // Удаляем директорию
-                    $dir = $base . '/uploads/videos/' . $path;
-                    if (is_dir($dir)) {
-                        $this->deleteDirectory($dir);
-                        $deleted++;
-                    }
-                } else if ($mediaType === 'image') {
-                    $filePath = $base . $path;
-                    if (file_exists($filePath)) {
-                        unlink($filePath);
-                        $deleted++;
-                    }
-                    // Удаляем thumbnail
-                    $thumb = $base . '/uploads/posts/thumbs/' . basename($path);
-                    if (file_exists($thumb)) unlink($thumb);
-                } else {
-                    if (strpos($path, '/') === 0) {
-                        $filePath = $base . $path;
-                        if (file_exists($filePath)) {
-                            unlink($filePath);
-                            $deleted++;
-                        }
-                    }
+                // Используем универсальную функцию удаления
+                if ($this->deleteMediaFile($path, $mediaType)) {
+                    $deleted++;
                 }
-
-                // Удаляем запись из БД
-                $db->query("DELETE FROM temp_uploads WHERE user_id = ? AND tracking_id = ?", [$authUser['userId'], $trackingId]);
             }
+
+            // Удаляем все записи из БД одним запросом (вне цикла)
+            $db->query("DELETE FROM temp_uploads WHERE user_id = ? AND tracking_id = ?", [$authUser['userId'], $trackingId]);
 
             $this->sendResponse(['ok' => true, 'deleted' => $deleted]);
         } catch (Exception $e) {
@@ -494,7 +481,9 @@ class PostController {
             try {
                 $db = Database::getInstance();
                 $db->query("DELETE FROM temp_uploads WHERE file_path = ?", [$m[1]]);
-            } catch (Exception $e) {}
+            } catch (Exception $e) {
+                error_log("Failed to delete video from temp_uploads: " . $e->getMessage());
+            }
             $this->sendResponse(['ok' => true]);
         }
 
@@ -512,7 +501,9 @@ class PostController {
         try {
             $db = Database::getInstance();
             $db->query("DELETE FROM temp_uploads WHERE file_path = ?", [$url]);
-        } catch (Exception $e) {}
+        } catch (Exception $e) {
+            error_log("Failed to delete media from temp_uploads: " . $e->getMessage());
+        }
 
         $this->sendResponse(['ok' => true]);
     }
@@ -530,6 +521,45 @@ class PostController {
     }
 
     /**
+     * Универсальное удаление медиафайлов
+     * @param string $path Путь к файлу (UUID для видео, полный путь для остальных)
+     * @param string $mediaType Тип медиа: 'video', 'image', 'gif'
+     * @return bool Успешно ли удалён файл
+     */
+    private function deleteMediaFile($path, $mediaType) {
+        $base = realpath(__DIR__ . '/../../');
+
+        switch ($mediaType) {
+            case 'video':
+                // Для видео path это UUID
+                exec("pkill -f 'ffmpeg.*{$path}' 2>&1");
+                $dir = $base . '/uploads/videos/' . $path;
+                if (is_dir($dir)) {
+                    $this->deleteDirectory($dir);
+                    return true;
+                }
+                break;
+
+            case 'image':
+            case 'gif':
+                // Для картинок/гифок path это полный путь типа /uploads/posts/...
+                $filePath = $base . $path;
+                if (file_exists($filePath)) {
+                    unlink($filePath);
+                    // Удалить thumbnail если есть
+                    if (strpos($path, '/uploads/posts/') === 0) {
+                        $thumb = $base . '/uploads/posts/thumbs/' . basename($path);
+                        if (file_exists($thumb)) unlink($thumb);
+                    }
+                    return true;
+                }
+                break;
+        }
+
+        return false;
+    }
+
+    /**
      * POST /upload/post-video — загрузка видео с HLS-транскодингом (360p/720p/1080p)
      */
     public function uploadPostVideo() {
@@ -540,16 +570,19 @@ class PostController {
         // Rate limiting: не более 2 одновременных конвертаций на пользователя
         try {
             $db = Database::getInstance();
-            $active = $db->query(
+            $stmt = $db->query(
                 "SELECT COUNT(*) as cnt FROM temp_uploads WHERE user_id = ? AND media_type = 'video' AND created_at > NOW() - INTERVAL '10 minutes'",
                 [$authUser['userId']]
             );
-            if ((int)($active[0]['cnt'] ?? 0) >= 2) {
+            $active = $stmt->fetch();
+            if ((int)($active['cnt'] ?? 0) >= 2) {
                 http_response_code(429);
                 echo json_encode(['error' => 'Too many concurrent video uploads. Please wait.']);
                 exit();
             }
-        } catch (Exception $e) {}
+        } catch (Exception $e) {
+            error_log("Failed to check video rate limit: " . $e->getMessage());
+        }
 
         if (!isset($_FILES['video']) || empty($_FILES['video']['name'])) {
             http_response_code(400);
@@ -615,7 +648,9 @@ class PostController {
                 "INSERT INTO temp_uploads (user_id, file_path, media_type, tracking_id) VALUES (?, ?, ?, ?)",
                 [$authUser['userId'], $uuid, 'video', $trackingId]
             );
-        } catch (Exception $e) {}
+        } catch (Exception $e) {
+            error_log("Failed to register video upload in temp_uploads: " . $e->getMessage());
+        }
 
         // Определяем размеры оригинала, чтобы не апскейлить
         $info           = $this->getVideoInfo($originalPath);
@@ -662,7 +697,7 @@ class PostController {
      * Получить размеры видео и наличие аудиодорожки через ffprobe
      */
     private function getVideoInfo($filePath) {
-        $ffprobe = 'ffprobe';
+        $ffprobe = $this->config['ffmpeg']['ffprobe'] ?? 'ffprobe';
         $default = ['width' => 1920, 'height' => 1080, 'has_audio' => true];
 
         exec('which ffprobe', $out, $code);
@@ -673,6 +708,7 @@ class PostController {
             escapeshellarg($ffprobe),
             escapeshellarg($filePath)
         );
+        $out = []; // Очищаем массив перед вторым exec
         exec($cmd, $out);
         $data = json_decode(implode('', $out), true);
 
@@ -690,6 +726,7 @@ class PostController {
     }
 
     private function buildFFmpegArgs($inputPath, $height, $params, $hasAudio, $outDir) {
+        $ffmpeg = $this->config['ffmpeg']['binary'] ?? 'ffmpeg';
         $bitrateNum = (int)$params['bitrate'];
         $bufsize    = ($bitrateNum * 2) . 'k';
         $audioArgs  = $hasAudio
@@ -698,7 +735,7 @@ class PostController {
 
         return array_merge(
             [
-                'ffmpeg', '-i', $inputPath,
+                $ffmpeg, '-i', $inputPath,
                 '-vf', "scale=-2:{$height}",
                 '-c:v', 'libx264', '-b:v', $params['bitrate'],
                 '-maxrate', $params['bitrate'], '-bufsize', $bufsize,
@@ -790,12 +827,20 @@ class PostController {
             foreach ($processes as $height => $entry) {
                 $status = proc_get_status($entry['proc']);
                 if (!$status['running']) {
+                    // exit code берём из proc_get_status, т.к. proc_close вернёт -1 после него
+                    $code = $status['exitcode'];
+
+                    $stdout = stream_get_contents($entry['pipes'][1]);
+                    $stderr = stream_get_contents($entry['pipes'][2]);
                     fclose($entry['pipes'][1]);
                     fclose($entry['pipes'][2]);
-                    $code = proc_close($entry['proc']);
+                    proc_close($entry['proc']);
                     unset($processes[$height]);
 
-                    if ($code === 0 && file_exists($videoDir . $height . 'p/stream.m3u8')) {
+                    $streamPath = $videoDir . $height . 'p/stream.m3u8';
+                    $exists = file_exists($streamPath);
+
+                    if ($code === 0 && $exists) {
                         $generated[$height] = $levels[$height];
                     } else {
                         error_log("HLS transcode {$height}p failed (exit code {$code})");
@@ -825,7 +870,7 @@ class PostController {
     /**
      */
     private function convertGifToMp4($gifPath, $mp4Path) {
-        $ffmpegPath = 'ffmpeg';
+        $ffmpegPath = $this->config['ffmpeg']['binary'] ?? 'ffmpeg';
 
         exec('which ffmpeg', $out, $code);
         if ($code !== 0) {

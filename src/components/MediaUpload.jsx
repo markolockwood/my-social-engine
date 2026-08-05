@@ -115,7 +115,19 @@ const MediaUpload = ({ onMediaChange, resetTrigger, imageInputRef, gifInputRef, 
   }, [resetTrigger, cancelUpload]);
 
   const handleRemove = (id) => {
+    const item = items.find(i => i.id === id);
+
+    // Если загрузка завершена и есть uploadedUrl, удаляем напрямую через API
+    if (item?.uploadedUrl) {
+      postsAPI.deleteMedia(item.uploadedUrl)
+        .then(() => console.log(`[MediaUpload] Deleted from server: ${item.uploadedUrl}`))
+        .catch(err => console.error('[MediaUpload] Failed to delete from server:', err));
+    }
+
+    // Пытаемся отменить через контекст (на случай если загрузка ещё в процессе)
     cancelUpload(id);
+
+    // Удаляем из локального состояния
     setItems(prev => prev.filter(i => i.id !== id));
   };
 
