@@ -161,94 +161,7 @@ return [
 
 Project runs through Nginx on Linux (WSL). Create configuration file for your domain.
 
-Example Nginx config (e.g., `/etc/nginx/sites-available/mytwit.com`):
-
-```nginx
-server {
-    listen 80;
-    server_name mytwit.com www.mytwit.com;
-    root /www/wwwroot/mytwit.com;
-    index index.html index.php;
-
-    # Logs
-    access_log /var/log/nginx/mytwit.access.log;
-    error_log /var/log/nginx/mytwit.error.log;
-
-    # API requests to PHP
-    location ^~ /api/ {
-        location ~ \.php$ {
-            fastcgi_pass unix:/tmp/php-cgi-81.sock;
-            fastcgi_index index.php;
-            fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
-            include fastcgi_params;
-
-            # Pass custom headers to PHP
-            fastcgi_param HTTP_X_TRACKING_ID $http_x_tracking_id;
-
-            # No caching for API
-            add_header Cache-Control "no-cache, no-store, must-revalidate" always;
-            add_header Pragma "no-cache" always;
-            add_header Expires "0" always;
-        }
-
-        try_files $uri $uri/ /api/index.php?$query_string;
-    }
-
-    # Uploaded files
-    location ^~ /uploads/ {
-        alias /www/wwwroot/mytwit.com/uploads/;
-
-        # HLS manifests
-        location ~* \.m3u8$ {
-            add_header Content-Type "application/vnd.apple.mpegurl";
-            add_header Cache-Control "no-cache";
-            add_header Access-Control-Allow-Origin "*";
-        }
-
-        # HLS segments
-        location ~* \.ts$ {
-            add_header Content-Type "video/mp2t";
-            add_header Cache-Control "public, max-age=31536000";
-            add_header Access-Control-Allow-Origin "*";
-        }
-
-        # Other files
-        expires 30d;
-        add_header Cache-Control "public";
-    }
-
-    # Deny access to service files
-    location ~ ^/(cleanup_temp_uploads\.php|composer\.json|package\.json|\.env|\.git|\.gitignore|\.htaccess|nginx\.conf) {
-        deny all;
-        return 404;
-    }
-
-    # Deny access to hidden files
-    location ~ /\. {
-        deny all;
-        return 404;
-    }
-
-    # Root path and all SPA routes serve dist/index.html
-    location / {
-        index /dist/index.html;
-        try_files /dist$uri /dist$uri/ /dist/index.html;
-
-        # No caching for HTML
-        location ~* \.html$ {
-            add_header Cache-Control "no-cache, no-store, must-revalidate";
-            add_header Pragma "no-cache";
-            add_header Expires "0";
-        }
-
-        # Cache static assets
-        location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
-            expires 1y;
-            add_header Cache-Control "public, immutable";
-        }
-    }
-}
-```
+**Example configuration:** see [`nginx.conf`](nginx.conf) file in the project root
 
 After creating configuration:
 
@@ -353,29 +266,6 @@ your-project/
 - [API Endpoints](docs/api_endpoints.md)
 - [Posts and Replies Architecture](docs/posts_architecture.md)
 
-## Troubleshooting
-
-### Video upload doesn't work
-- Check FFmpeg is installed: `ffmpeg -version`
-- Check PHP functions are enabled: `proc_open`, `proc_close`, `exec`
-- Check file permissions on `uploads/videos/` directory
-- Check PHP error logs: `/var/log/php8.1-fpm.log`
-
-### Images not displaying
-- Check file permissions on `uploads/` directory
-- Check Nginx configuration for `/uploads/` location
-- Check PHP GD extension is enabled: `php -m | grep gd`
-
-### Video has no sound
-- Issue was fixed in version 1.5.2
-- Make sure you're running latest code version
-- Check `getVideoInfo()` function correctly detects audio tracks
-
-### Tracking ID not saved
-- Make sure Nginx passes `X-Tracking-ID` header to PHP
-- Add to nginx.conf: `fastcgi_param HTTP_X_TRACKING_ID $http_x_tracking_id;`
-- Restart Nginx: `sudo systemctl restart nginx`
-
 ## Next Steps (TODO)
 
 - [ ] Follow/unfollow system
@@ -389,18 +279,7 @@ your-project/
 
 ## License
 
-This project is open source and available for personal and commercial use.
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## Support
-
-For issues and questions:
-- Create an issue on GitHub
-- Check documentation in `/docs/` folder
-- Review CHANGELOG.md for recent changes
+All rights reserved.
 
 ---
 
