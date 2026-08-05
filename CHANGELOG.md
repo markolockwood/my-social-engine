@@ -1,278 +1,286 @@
 # Changelog
 
-Все значимые изменения в проекте будут документированы в этом файле.
+All notable changes to this project will be documented in this file.
+
+**[Русская версия / Russian version](CHANGELOG_RU.md)**
 
 ## [1.5.2] - 2026-08-05
-Фиксы проблем после переезда с Windows (Apache) на Linux (Nginx).
 
-### Исправлено
-- **Загрузка видео**: исправлена ошибка `proc_open() undefined` - включена функция в php.ini для параллельной конвертации видео
-- **Аудио в видео**: исправлено отсутствие звука в сконвертированных HLS-потоках
-  - Исправлена очистка массива `$out` перед вторым `exec()` в `getVideoInfo()`
-  - Функция теперь корректно определяет наличие аудиодорожки
-- **Master.m3u8**: исправлена генерация плейлиста - все качества (360p/720p/1080p) теперь добавляются в список
-  - Проблема: `proc_close()` возвращал -1 вместо реального exit code
-  - Решение: использовать `$status['exitcode']` из `proc_get_status()`
-- **Выбор качества видео**: теперь корректно отображается переключатель качества при воспроизведении
-- **Удаление медиа**: исправлено удаление завершённых загрузок из temp_uploads
-  - Проблема: после `clearCompleted()` элемент не находился в глобальном контексте
-  - Решение: `MediaUpload.handleRemove()` теперь вызывает `postsAPI.deleteMedia()` напрямую
-- **Tracking ID**: исправлена передача custom заголовка `X-Tracking-ID` через Nginx
-  - Добавлена директива `fastcgi_param HTTP_X_TRACKING_ID $http_x_tracking_id`
-  - Теперь tracking_id корректно сохраняется в temp_uploads для всех типов медиа
-- **Права доступа**: временно установлены права 777 на uploads/ для работы на Linux
-- **PDOStatement**: исправлено использование результатов `db->query()` - добавлены `->fetch()` и `->fetchAll()`
+### Fixed
+- **Video upload**: fixed `proc_open() undefined` error - enabled function in php.ini for parallel video conversion
+- **Video audio**: fixed missing audio in converted HLS streams
+  - Fixed `$out` array cleanup before second `exec()` in `getVideoInfo()`
+  - Function now correctly detects audio track presence
+- **Master.m3u8**: fixed playlist generation - all qualities (360p/720p/1080p) are now added to the list
+  - Issue: `proc_close()` returned -1 instead of real exit code
+  - Solution: use `$status['exitcode']` from `proc_get_status()`
+- **Video quality selection**: quality switcher now displays correctly during playback
+- **Media deletion**: fixed deletion of completed uploads from temp_uploads
+  - Issue: after `clearCompleted()` element was not found in global context
+  - Solution: `MediaUpload.handleRemove()` now calls `postsAPI.deleteMedia()` directly
+- **Tracking ID**: fixed custom header `X-Tracking-ID` passing through Nginx
+  - Added directive `fastcgi_param HTTP_X_TRACKING_ID $http_x_tracking_id`
+  - tracking_id now correctly saved in temp_uploads for all media types
+- **File permissions**: temporarily set 777 permissions on uploads/ for Linux compatibility
+- **PDOStatement**: fixed `db->query()` result usage - added `->fetch()` and `->fetchAll()`
 
-### Изменено
-- **Миграция с Windows на Linux**: проект теперь работает на Nginx вместо Apache
-  - Обновлена конфигурация PHP-FPM для работы с Nginx
-  - Включены PHP расширения: `fileinfo`, `exec`, `proc_open`, `proc_close`, `proc_get_status`
-  - Установлен FFmpeg для конвертации видео
-- **Рефакторинг кода**: улучшена структура и читаемость
-  - Создана универсальная функция `deleteMediaFile($path, $mediaType)` для удаления медиа
-  - Код `cancelUpload()` сокращён с ~40 до ~10 строк
-  - Вынесены пути к FFmpeg в `config/config.php`:
+### Changed
+- **Migration from Windows to Linux**: project now runs on Nginx instead of Apache
+  - Updated PHP-FPM configuration for Nginx
+  - Enabled PHP extensions: `fileinfo`, `exec`, `proc_open`, `proc_close`, `proc_get_status`
+  - Installed FFmpeg for video conversion
+- **Code refactoring**: improved structure and readability
+  - Created universal `deleteMediaFile($path, $mediaType)` function for media deletion
+  - `cancelUpload()` code reduced from ~40 to ~10 lines
+  - Moved FFmpeg paths to `config/config.php`:
     ```php
     'ffmpeg' => [
         'binary' => '/usr/bin/ffmpeg',
         'ffprobe' => '/usr/bin/ffprobe'
     ]
     ```
-  - Добавлен конструктор в `PostController` для загрузки конфигурации
-- **Логирование ошибок**: добавлено логирование в 7 catch блоков через `error_log()`
-  - Регистрация картинок/гифок/видео в temp_uploads
-  - Удаление медиа из temp_uploads
-  - Проверка rate limit для видео
-- **Синхронизация состояния**: улучшена синхронизация между локальным и глобальным состоянием загрузок
-  - `MediaUpload` теперь правильно удаляет элементы из локального состояния
+  - Added constructor to `PostController` for config loading
+- **Error logging**: added logging to 7 catch blocks via `error_log()`
+  - Images/GIFs/videos registration in temp_uploads
+  - Media deletion from temp_uploads
+  - Rate limit checking for videos
+- **State synchronization**: improved sync between local and global upload state
+  - `MediaUpload` now correctly removes items from local state
 
-### Безопасность
-- **Аутентификация**: проверены все public функции в PostController
-  - Все защищённые эндпоинты правильно используют `requireAuth()`
-  - Публичные эндпоинты (`view`, `getComments`) намеренно без авторизации
+### Removed
+- **Debug code**: removed all temporary files and logging
+  - Removed test files: `test_upload.php`, `test_temp_uploads.php`
+  - Removed `transcode.log` file and all logging to it
+  - Removed test file entries from nginx.conf
+  - Kept only critical logging via `error_log()`
 
-### Технические детали
-- FFmpeg пути теперь конфигурируются в `config/config.php`
-- Универсальная функция `deleteMediaFile()` поддерживает типы: `video`, `image`, `gif`
-- Для видео автоматически убивается процесс ffmpeg при удалении
-- Для картинок автоматически удаляются thumbnails
-- Nginx передаёт custom заголовки в PHP-FPM через `fastcgi_param`
-- Все ошибки БД логируются с понятными сообщениями
+### Security
+- **Authentication**: verified all public functions in PostController
+  - All protected endpoints correctly use `requireAuth()`
+  - Public endpoints (`view`, `getComments`) intentionally without authorization
+
+### Technical Details
+- FFmpeg paths now configured in `config/config.php`
+- Universal `deleteMediaFile()` function supports types: `video`, `image`, `gif`
+- For videos, ffmpeg process is automatically killed on deletion
+- For images, thumbnails are automatically deleted
+- Nginx passes custom headers to PHP-FPM via `fastcgi_param`
+- All database errors logged with clear messages
 
 ---
 
 ## [1.5.1] - 2026-08-04
 
-### Изменено
-- **Прикрепление видео к посту**: теперь можно оставить видео на загрузку с конвертацией и спокойно перемещаться по сайту. 
-При выходе с сайта или обновлении страницы загрузка обрывается, файл удаляется с сервера. Перед обновлением страницы появляется предупреждение.
+### Changed
+- **Video attachment to post**: you can now leave video for upload with conversion and freely navigate the site. 
+When leaving the site or refreshing the page, upload is interrupted and file is deleted from server. Warning appears before page refresh.
 
-### Глобально
-- **Переход на Nginx**: конфигурация теперь в nginx.conf, а не нескольких .htaccess; изменён vite.config.js.
-- При работе на Windows возникнут проблемы как минимум с медиа-контентом: в частности с удалением с диска. Рекомендуется только Linux.
+### Global
+- **Migration to Nginx**: configuration now in nginx.conf instead of multiple .htaccess files; vite.config.js updated.
+- On Windows, issues will arise at least with media content: particularly with disk deletion. Linux only is recommended.
 
 
 ## [1.5.0] - 2026-08-03
 
-### Добавлено
-- **Загрузка видео**: поддержка загрузки видео файлов (MP4, WebM, AVI, MOV, MKV) до 100MB
-  - API endpoint `POST /api/upload/post-video` с HLS-конвертацией через FFmpeg
-  - Автоматическая генерация HLS-потоков с множественными уровнями качества (360p, 720p, 1080p)
-  - Конвертация в H.264 (видео) + AAC (аудио) для кросс-браузерной совместимости
-- **VideoPlayer**: кастомный видеоплеер с поддержкой HLS.js и полным набором контролов
-  - Play/Pause, timeline с перемоткой
-  - Регулировка громкости с draggable вертикальным слайдером
-  - Переключение качества видео (Auto, 360p, 720p, 1080p)
-  - Настройка скорости воспроизведения (0.25x - 2x)
-  - Двухуровневое меню настроек (⚙️) как в Twitter
-  - Адаптивный размер под экран (вертикальные и горизонтальные видео)
-- **Сохранение громкости видео**: 
-  - Колонка `users.video_volume` (по умолчанию 0.45 = 45%)
+### Added
+- **Video upload**: support for video file uploads (MP4, WebM, AVI, MOV, MKV) up to 100MB
+  - API endpoint `POST /api/upload/post-video` with HLS conversion via FFmpeg
+  - Automatic HLS stream generation with multiple quality levels (360p, 720p, 1080p)
+  - Conversion to H.264 (video) + AAC (audio) for cross-browser compatibility
+- **VideoPlayer**: custom video player with HLS.js support and full controls
+  - Play/Pause, timeline with seeking
+  - Volume control with draggable vertical slider
+  - Quality switching (Auto, 360p, 720p, 1080p)
+  - Playback speed adjustment (0.25x - 2x)
+  - Two-level settings menu (⚙️) like Twitter
+  - Adaptive sizing for screen (vertical and horizontal videos)
+- **Video volume persistence**: 
+  - Column `users.video_volume` (default 0.45 = 45%)
   - API endpoint `PATCH /user/video-volume`
-  - Автосохранение уровня громкости с debounce 1 сек
-  - Восстановление громкости при воспроизведении (в ленте и лайтбоксе)
-- **Временные загрузки**: таблица `temp_uploads` для отслеживания неиспользованных медиафайлов
-  - Автоматическая регистрация всех загруженных медиа (картинки, GIF, видео)
-  - Cron-задача для очистки файлов старше 48 часов
-  - Удаление временных файлов при размонтировании ComposeWidget для комментариев
+  - Auto-save volume level with 1 sec debounce
+  - Volume restoration on playback (in feed and lightbox)
+- **Temporary uploads**: `temp_uploads` table for tracking unused media files
+  - Automatic registration of all uploaded media (images, GIFs, videos)
+  - Cron task for cleaning files older than 48 hours
+  - Temporary file deletion on ComposeWidget unmount for comments
 - **MediaLightbox**: 
-  - Интеграция VideoPlayer с полными контролами
-  - Быстрый ответ через ComposeReplyModal при клике на 💬
-  - Корректное отображение вертикальных видео
-- **Мультиязычность видеоплеера**: переводы интерфейса (EN/RU)
+  - VideoPlayer integration with full controls
+  - Quick reply via ComposeReplyModal on 💬 click
+  - Correct vertical video display
+- **Video player localization**: interface translations (EN/RU)
   - "Playback speed" / "Скорость видео"
   - "Quality" / "Качество"
   - "Normal" / "Обычная"
   - "Auto" / "Авто"
 
-### Исправлено
-- **MediaUpload**: исправлена ошибка `Undefined array key "id"` в регистрации temp_uploads (использовался `$authUser['id']` вместо `$authUser['userId']`)
+### Fixed
+- **MediaUpload**: fixed `Undefined array key "id"` error in temp_uploads registration (used `$authUser['id']` instead of `$authUser['userId']`)
 - **VideoPlayer**: 
-  - Исправлено переполнение видео за границы лайтбокса (добавлены `max-width: 100%; max-height: 100%`)
-  - Исправлено зависание видео при переключении качества (добавлена подписка на `LEVEL_SWITCHED`)
-  - Исправлен масштаб видео при переключении качества (принудительный `width: 100%; height: 100%` с `object-fit: contain`)
-  - Исправлено закрытие лайтбокса при клике на видео/контролы (добавлен `e.stopPropagation()`)
-- **PostMedia**: исправлено воспроизведение видео в ленте без звука (добавлена установка `video.volume` из сохранённых настроек)
-- **Громкость**: исправлено исчезновение слайдера громкости при наведении (убран CSS `:hover`, добавлено JS-управление с задержкой 300ms)
-- **ComposeWidget**: исправлена утечка медиафайлов при отмене комментария (добавлен cleanup при размонтировании через `useRef`)
+  - Fixed video overflow beyond lightbox boundaries (added `max-width: 100%; max-height: 100%`)
+  - Fixed video freeze on quality switching (added `LEVEL_SWITCHED` subscription)
+  - Fixed video scale on quality switching (forced `width: 100%; height: 100%` with `object-fit: contain`)
+  - Fixed lightbox closing on video/controls click (added `e.stopPropagation()`)
+- **PostMedia**: fixed video playback in feed without sound (added `video.volume` setting from saved preferences)
+- **Volume**: fixed volume slider disappearing on hover (removed CSS `:hover`, added JS control with 300ms delay)
+- **ComposeWidget**: fixed media file leak on comment cancel (added cleanup on unmount via `useRef`)
 
-### Безопасность
-- **Валидация видео**: проверка MIME-типов через `finfo_file()` и whitelist расширений
-- **Ограничение размера**: максимум 100MB для видео файлов
-- **FFmpeg изоляция**: все пути к файлам валидируются, используются только файлы из `/uploads/videos/`
-- **Очистка временных файлов**: автоматическое удаление неиспользованных медиа через 48ч
+### Security
+- **Video validation**: MIME type checking via `finfo_file()` and extension whitelist
+- **Size limit**: maximum 100MB for video files
+- **FFmpeg isolation**: all file paths validated, only files from `/uploads/videos/` used
+- **Temporary file cleanup**: automatic deletion of unused media after 48h
 
-### Производительность
-- **HLS адаптивный стриминг**: автоматический выбор качества под скорость соединения
-- **Миниатюры видео**: генерация превью для быстрой загрузки в ленте
-- **Debounce сохранения громкости**: 1 сек задержка для уменьшения нагрузки на сервер
+### Performance
+- **HLS adaptive streaming**: automatic quality selection based on connection speed
+- **Video thumbnails**: preview generation for fast feed loading
+- **Volume save debounce**: 1 sec delay to reduce server load
 
 ## [1.4.0] - 2026-08-02
 
-### Добавлено
-- **Унификация медиа**: объединены изображения и GIF в единую систему `post_media` с поддержкой разных типов файлов
-- **Миниатюры изображений**: автоматическое создание thumbnails (600px) для экономии трафика в ленте постов
-- **Конвертация GIF в MP4**: автоматическая конвертация GIF в MP4 через FFmpeg (экономия ~96% размера файла)
-- **MediaLightbox**: модальное окно для просмотра медиа с навигацией стрелками и отображением информации о посте
-- **MediaUpload**: компонент для загрузки изображений и GIF с превью
-- **PostMedia**: компонент для отображения медиа в постах с поддержкой GIF (пауза/плей по клику)
-- API endpoint `POST /api/upload/post-gif` — загрузка GIF с автоматической конвертацией в MP4
-- Метод `PostController::createThumbnail()` — генерация миниатюр через GD
-- Метод `PostController::convertGifToMp4()` — конвертация GIF в MP4 через FFmpeg
-- **RateLimitMiddleware** — middleware для ограничения частоты запросов (использует APCu)
+### Added
+- **Media unification**: merged images and GIFs into unified `post_media` system with different file type support
+- **Image thumbnails**: automatic thumbnail creation (600px) to save traffic in post feed
+- **GIF to MP4 conversion**: automatic GIF conversion to MP4 via FFmpeg (~96% file size savings)
+- **MediaLightbox**: modal window for media viewing with arrow navigation and post info display
+- **MediaUpload**: component for uploading images and GIFs with preview
+- **PostMedia**: component for displaying media in posts with GIF support (pause/play on click)
+- API endpoint `POST /api/upload/post-gif` — GIF upload with automatic MP4 conversion
+- Method `PostController::createThumbnail()` — thumbnail generation via GD
+- Method `PostController::convertGifToMp4()` — GIF to MP4 conversion via FFmpeg
+- **RateLimitMiddleware** — middleware for rate limiting (uses APCu)
 
-### Безопасность
-- **Валидация MIME через file content**: проверка типа файлов через `finfo_file()` вместо `$_FILES['type']` для защиты от загрузки вредоносных файлов под видом изображений (`PostController.php`, `UserController.php`)
-- **Whitelist расширений файлов**: дополнительная проверка расширений `.jpg`, `.jpeg`, `.png`, `.webp`, `.gif`
-- **Rate Limiting**: ограничение частоты запросов через `RateLimitMiddleware` (APCu):
-  - Регистрация: 3 попытки за 10 минут с одного IP
-  - Вход: 5 попыток за 5 минут с одного IP (сброс счётчика после успешного логина)
-  - Создание постов: 20 постов за 10 минут на пользователя
-- **Валидация avatar_url**: разрешены только URL из `/uploads/avatars/` с корректными расширениями (regex проверка)
-- **FFmpeg path validation**: проверка, что файлы для конвертации находятся в `/uploads/gifs/` (защита от path traversal)
-- **Удаление файлов**: автоматическое удаление медиафайлов и миниатюр при удалении постов (`Post::delete()`)
-- **Ограничение логирования SQL**: детали запросов (SQL, параметры) логируются только в `development` режиме
-- **CSP заголовки**: добавлены в `.htaccess`:
-  - `Content-Security-Policy` — ограничение источников контента
-  - `X-Content-Type-Options: nosniff` — защита от MIME-sniffing
-  - `X-Frame-Options: DENY` — защита от clickjacking
-  - `X-XSS-Protection: 1; mode=block` — дополнительная XSS защита
-  - `Referrer-Policy: strict-origin-when-cross-origin` — контроль referrer
-- **XSS защита**: React автоматически экранирует весь вывод через `{post.content}` — HTML теги отображаются как текст, не выполняются
+### Security
+- **MIME validation via file content**: file type checking via `finfo_file()` instead of `$_FILES['type']` to protect against malicious file uploads disguised as images (`PostController.php`, `UserController.php`)
+- **File extension whitelist**: additional check for `.jpg`, `.jpeg`, `.png`, `.webp`, `.gif` extensions
+- **Rate Limiting**: request frequency limiting via `RateLimitMiddleware` (APCu):
+  - Registration: 3 attempts per 10 minutes from one IP
+  - Login: 5 attempts per 5 minutes from one IP (counter reset after successful login)
+  - Post creation: 20 posts per 10 minutes per user
+- **avatar_url validation**: only URLs from `/uploads/avatars/` with correct extensions allowed (regex check)
+- **FFmpeg path validation**: verify files for conversion are in `/uploads/gifs/` (protection from path traversal)
+- **File deletion**: automatic media file and thumbnail deletion when posts are deleted (`Post::delete()`)
+- **SQL logging limitation**: query details (SQL, parameters) logged only in `development` mode
+- **CSP headers**: added to `.htaccess`:
+  - `Content-Security-Policy` — content source restrictions
+  - `X-Content-Type-Options: nosniff` — MIME-sniffing protection
+  - `X-Frame-Options: DENY` — clickjacking protection
+  - `X-XSS-Protection: 1; mode=block` — additional XSS protection
+  - `Referrer-Policy: strict-origin-when-cross-origin` — referrer control
+- **XSS protection**: React automatically escapes all output via `{post.content}` — HTML tags displayed as text, not executed
 
-### Изменено
-- **Post.php**: метод `attachMedia()` теперь возвращает `media` (JSON массив с `url`, `thumb`, `type`, `order`) вместо `images`
-- **PostController::uploadPostImages()**: возвращает `{url, thumb}` вместо просто `url`
-- **ComposeWidget**: обновлена обработка загрузки медиа для поддержки миниатюр
-- **PostMedia**: в ленте отображаются миниатюры (`item.thumb`), в лайтбоксе — оригиналы (`item.url`)
-- **QuotedPost**: обновлён для работы с полем `media` вместо `images`
-- **ImageLightbox** переименован в **MediaLightbox** с поддержкой видео и GIF
-- GIF в ленте отображаются как `<video autoplay loop muted>` с бейджем "GIF" и возможностью паузы по клику
-- GIF в лайтбоксе отображаются как видео без элементов управления (autoplay + loop)
+### Changed
+- **Post.php**: `attachMedia()` method now returns `media` (JSON array with `url`, `thumb`, `type`, `order`) instead of `images`
+- **PostController::uploadPostImages()**: returns `{url, thumb}` instead of just `url`
+- **ComposeWidget**: updated media upload handling for thumbnail support
+- **PostMedia**: feed displays thumbnails (`item.thumb`), lightbox displays originals (`item.url`)
+- **QuotedPost**: updated to work with `media` field instead of `images`
+- **ImageLightbox** renamed to **MediaLightbox** with video and GIF support
+- GIFs in feed displayed as `<video autoplay loop muted>` with "GIF" badge and pause on click
+- GIFs in lightbox displayed as video without controls (autoplay + loop)
 
-### Исправлено
-- **Масштабирование в лайтбоксе**: большие изображения теперь корректно масштабируются под размер экрана (`max-width: 100%`, `max-height: 100%`, `min-height: 0`, `overflow: hidden`)
-- **Превью медиа в ComposeWidget**: ограничена максимальная высота сетки (400px для 1/3/4 изображений, 300px для 2), чтобы большие изображения не занимали весь экран
-- **Кэширование статики**: добавлены заголовки в `.htaccess` для корректного кэширования (HTML — `no-cache`, JS/CSS с хэшами — `immutable`, API — `no-cache`), решена проблема пропадания стилей после очистки кеша
-- **Лайтбокс не открывался**: добавлен проп `post` в компонент `PostMedia` в `Post.jsx` и `PostPage.jsx`
-- **Медиа не отображались в QuotedPost**: обновлён компонент для работы с новым полем `media`
+### Fixed
+- **Lightbox scaling**: large images now correctly scale to screen size (`max-width: 100%`, `max-height: 100%`, `min-height: 0`, `overflow: hidden`)
+- **Media preview in ComposeWidget**: limited grid max height (400px for 1/3/4 images, 300px for 2) so large images don't occupy entire screen
+- **Static caching**: added headers to `.htaccess` for correct caching (HTML — `no-cache`, JS/CSS with hashes — `immutable`, API — `no-cache`), fixed style disappearing after cache clear
+- **Lightbox not opening**: added `post` prop to `PostMedia` component in `Post.jsx` and `PostPage.jsx`
+- **Media not displaying in QuotedPost**: updated component to work with new `media` field
 
-### Удалено
-- `004_add_retweets.sql` и `008_add_post_images.sql`
-- Компоненты `ImageUpload.jsx`, `PostImages.jsx` (заменены на `MediaUpload.jsx`, `PostMedia.jsx`)
-- Таблица `post_images` (заменена на `post_media`)
+### Removed
+- `004_add_retweets.sql` and `008_add_post_images.sql`
+- Components `ImageUpload.jsx`, `PostImages.jsx` (replaced with `MediaUpload.jsx`, `PostMedia.jsx`)
+- Table `post_images` (replaced with `post_media`)
 
-### Технические детали
-- FFmpeg путь: `C:/ffmpeg/bin/ffmpeg.exe` (hardcoded в `PostController.php`)
-- Миниатюры создаются через PHP GD с качеством JPEG 85, PNG 8, WebP 85
-- GIF конвертируются в MP4 с параметрами: `-movflags faststart -pix_fmt yuv420p -c:v libx264 -preset fast -crf 23`
-- Оригинальный GIF удаляется после успешной конвертации
-- При отсутствии FFmpeg GIF сохраняется без конвертации
-- Поддержка до 4 медиафайлов на пост (изображения + GIF)
+### Technical Details
+- FFmpeg path: `C:/ffmpeg/bin/ffmpeg.exe` (hardcoded in `PostController.php`)
+- Thumbnails created via PHP GD with quality JPEG 85, PNG 8, WebP 85
+- GIFs converted to MP4 with parameters: `-movflags faststart -pix_fmt yuv420p -c:v libx264 -preset fast -crf 23`
+- Original GIF deleted after successful conversion
+- Without FFmpeg, GIF saved without conversion
+- Support for up to 4 media files per post (images + GIFs)
 
 ---
 
 ## [1.3.0] - 2026-08-01
 
-### Добавлено
-- **ComposeWidget** — единый компонент для написания постов и ответов (`ComposeWidget.jsx`, `ComposeWidget.css`): аватар слева, textarea, ниже — иконки прикрепления (фото, GIF, эмодзи) и кнопка Post/Reply справа
-- **Прикрепление изображений в ответах**: `ComposeWidget` поддерживает загрузку фото везде — на главной, под постом, в лайтбоксе
-- **Динамическое обновление ленты** (Home): polling каждые 30 сек; при появлении новых постов показывается кнопка «Показать N постов», при клике — посты вставляются в начало ленты
-- **Динамическое обновление комментариев** (PostPage): polling каждые 20 сек, новые ответы добавляются автоматически
-- **Изображения в QuotedPost**: при быстром ответе на пост с картинками они теперь отображаются внутри цитируемого поста
-- Ключи переводов `post_page.views`, `post_page.comments_count`, `post_page.likes_count` в `ru.json` и `en.json`
+### Added
+- **ComposeWidget** — unified component for writing posts and replies (`ComposeWidget.jsx`, `ComposeWidget.css`): avatar on left, textarea, below — attachment icons (photo, GIF, emoji) and Post/Reply button on right
+- **Image attachment in replies**: `ComposeWidget` supports photo uploads everywhere — on home page, under post, in lightbox
+- **Dynamic feed updates** (Home): polling every 30 sec; when new posts appear, "Show N posts" button displayed, on click — posts inserted at beginning of feed
+- **Dynamic comment updates** (PostPage): polling every 20 sec, new replies added automatically
+- **Images in QuotedPost**: when quick replying to post with images they now display inside quoted post
+- Translation keys `post_page.views`, `post_page.comments_count`, `post_page.likes_count` in `ru.json` and `en.json`
 
-### Изменено
-- **ComposePost**, **PostPage**, **ImageLightbox** — inline-формы ответа заменены на `ComposeWidget`
-- **ImageUpload** — добавлены пропсы `inputRef` (внешний триггер файлового инпута) и `hideButton` (скрыть встроенную кнопку)
-- **ImageLightbox** — правая панель теперь прилегает к правому краю экрана (убраны `max-width` и `margin: auto` с контейнера)
-- **ImageLightbox** — скрыт скроллбар правой панели (контент прокручивается, полоса не видна)
-- **ImageLightbox** — исправлены CSS-переменные: `--bg-primary` → `--bg`, `--text-primary` → `--text`, `--border-color` → `--border` и т.д.; теперь корректно работает в светлой теме
-- **ImageLightbox** — клик по тёмному фону (вне изображения и правой панели) закрывает окно
-- **ImageLightbox** — убраны хардкод-строки на русском, исправлена локаль с `'ru-RU'` на `t('locale')`
-- **PostPage** — убраны дублирующие состояния `replyText`, `submitting`, `replyError`, `textareaRef`
+### Changed
+- **ComposePost**, **PostPage**, **ImageLightbox** — inline reply forms replaced with `ComposeWidget`
+- **ImageUpload** — added props `inputRef` (external file input trigger) and `hideButton` (hide built-in button)
+- **ImageLightbox** — right panel now aligns to right screen edge (removed `max-width` and `margin: auto` from container)
+- **ImageLightbox** — hidden right panel scrollbar (content scrolls, bar not visible)
+- **ImageLightbox** — fixed CSS variables: `--bg-primary` → `--bg`, `--text-primary` → `--text`, `--border-color` → `--border` etc.; now works correctly in light theme
+- **ImageLightbox** — clicking dark background (outside image and right panel) closes window
+- **ImageLightbox** — removed hardcoded Russian strings, fixed locale from `'ru-RU'` to `t('locale')`
+- **PostPage** — removed duplicate states `replyText`, `submitting`, `replyError`, `textareaRef`
 
 ---
 
 ## [1.2.0] - 2026-08-01
 
-### Добавлено
-- **Прикрепление изображений к постам**: пользователи могут добавлять до 4 изображений к посту
-- **Адаптивная сетка отображения**: изображения отображаются в оптимальной сетке в зависимости от количества (1-4)
-- **Lightbox для просмотра**: клик на изображение открывает его в полном размере
-- **Компонент ImageUpload**: интерфейс для выбора и превью изображений перед публикацией
-- **Компонент PostImages**: адаптивное отображение изображений в постах с закругленными углами
-- **API endpoint** `POST /api/upload/post-images` — загрузка изображений (до 4 шт, макс 5MB каждое)
-- **Таблица post_images** в БД для хранения связей между постами и изображениями
-- Валидация типов файлов (JPEG, PNG, GIF, WEBP) и размера (макс 5MB)
-- Автоматическое удаление файлов изображений при удалении поста
+### Added
+- **Image attachment to posts**: users can add up to 4 images to a post
+- **Adaptive grid display**: images displayed in optimal grid depending on quantity (1-4)
+- **Lightbox for viewing**: clicking image opens it in full size
+- **ImageUpload component**: interface for selecting and previewing images before publishing
+- **PostImages component**: adaptive image display in posts with rounded corners
+- **API endpoint** `POST /api/upload/post-images` — image upload (up to 4, max 5MB each)
+- **post_images table** in DB for storing post-image relationships
+- File type validation (JPEG, PNG, GIF, WEBP) and size (max 5MB)
+- Automatic image file deletion when post is deleted
 
-### Изменено
-- Обновлен метод `Post::create()` для поддержки массива URL изображений
-- Обновлен `PostController::create()` для обработки поля `image_urls`
-- Расширен `Post::baseSelect()` для включения изображений в выборки постов
-- Обновлен API клиент (`postsAPI`) с методами `uploadImages` и расширенным `create`
-- Компонент `ComposePost` теперь поддерживает загрузку изображений
-- Компонент `Post` отображает прикрепленные изображения
+### Changed
+- Updated `Post::create()` method to support image URL array
+- Updated `PostController::create()` to handle `image_urls` field
+- Extended `Post::baseSelect()` to include images in post selections
+- Updated API client (`postsAPI`) with `uploadImages` methods and extended `create`
+- `ComposePost` component now supports image upload
+- `Post` component displays attached images
 
-### Технические детали
-- Изображения хранятся в `/uploads/posts/`
-- Используется PostgreSQL JSON aggregation для эффективной выборки изображений
-- Cascade удаление записей из `post_images` при удалении поста
-- Lazy loading изображений для оптимизации производительности
-- Responsive дизайн с адаптацией под мобильные устройства
+### Technical Details
+- Images stored in `/uploads/posts/`
+- Uses PostgreSQL JSON aggregation for efficient image selection
+- Cascade deletion of `post_images` records when post is deleted
+- Lazy loading of images for performance optimization
+- Responsive design with mobile device adaptation
 
 ---
 
 ## [1.1.0] - 2026-08-01
 
-### Изменено
-- **Рефакторинг архитектуры API**: Переход от монолитного `api/index.php` к модульной структуре с контроллерами
-- Сокращение размера `api/index.php` с 407 до 60 строк кода
-- Улучшена масштабируемость и поддерживаемость кода
+### Changed
+- **API architecture refactoring**: Migration from monolithic `api/index.php` to modular structure with controllers
+- Reduced `api/index.php` size from 407 to 60 lines of code
+- Improved code scalability and maintainability
 
-### Добавлено
-- **Router.php** — система маршрутизации с поддержкой динамических параметров в URL
-- **middleware/AuthMiddleware.php** — централизованная обработка авторизации
-- **controllers/AuthController.php** — контроллер для регистрации, логина и управления сессией
-- **controllers/PostController.php** — контроллер для работы с постами (создание, лайки, ретвиты, комментарии)
-- **controllers/UserController.php** — контроллер для профилей, настроек и загрузки аватаров
+### Added
+- **Router.php** — routing system with dynamic URL parameter support
+- **middleware/AuthMiddleware.php** — centralized authorization handling
+- **controllers/AuthController.php** — controller for registration, login and session management
+- **controllers/PostController.php** — controller for working with posts (creation, likes, retweets, comments)
+- **controllers/UserController.php** — controller for profiles, settings and avatar uploads
 
-### Технические детали
-- Все контроллеры изолированы и могут тестироваться независимо
-- Добавлены краткие комментарии к методам на русском языке
-- API endpoints остались без изменений — обратная совместимость сохранена
-- Подготовлена структура для будущего расширения функционала (блоги, музыка и т.п.)
+### Technical Details
+- All controllers isolated and can be tested independently
+- Added brief method comments in Russian
+- API endpoints unchanged — backward compatibility preserved
+- Structure prepared for future feature expansion (blogs, music, etc.)
 
 ---
 
-## [1.0.0] - Ранее
+## [1.0.0] - Earlier
 
-### Начальная версия
-- Базовая функциональность социальной сети
-- Регистрация и авторизация пользователей
-- Создание постов и ответов
-- Лайки и ретвиты
-- Комментарии к постам
-- Профили пользователей
-- Темы оформления и мультиязычность
+### Initial Version
+- Basic social network functionality
+- User registration and authorization
+- Post and reply creation
+- Likes and retweets
+- Post comments
+- User profiles
+- Themes and multi-language support
