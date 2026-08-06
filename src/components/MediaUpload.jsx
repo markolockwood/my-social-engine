@@ -1,16 +1,19 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useUpload } from '../context/UploadContext';
 import { postsAPI } from '../api/api';
+import { CrossTabSync } from '../utils/crossTabSync';
 import '../styles/MediaUpload.css';
 
 /**
  * Все медиа (изображения, GIF, видео) загружаются на сервер НЕМЕДЛЕННО при прикреплении.
- * Использует глобальный UploadContext для сохранения состояния загрузки при навигации.
+ * Для главной страницы: использует temp_uploads в БД для восстановления состояния.
+ * Для комментариев: медиа НЕ сохраняются в temp_uploads, удаляются при unmount.
  */
-const MediaUpload = ({ onMediaChange, resetTrigger, imageInputRef, gifInputRef, videoInputRef, initialItems, contextKey = 'default' }) => {
-  const { startUpload, cancelUpload, getUploadsForContext } = useUpload();
+const MediaUpload = ({ onMediaChange, resetTrigger, reloadTrigger, imageInputRef, gifInputRef, videoInputRef, initialItems, contextKey = 'default' }) => {
+  const { startUpload, cancelUpload, removeUpload, getUploadsForContext } = useUpload();
   const [items, setItems] = useState(() => {
-    // При монтировании восстанавливаем как завершенные (initialItems), так и активные загрузки
+    // При монтировании восстанавливаем из initialItems (для комментариев)
+    // Для главной страницы медиа загрузятся через fetchTempUploads
     const initial = initialItems || [];
     const activeUploads = getUploadsForContext(contextKey);
 
@@ -32,9 +35,101 @@ const MediaUpload = ({ onMediaChange, resetTrigger, imageInputRef, gifInputRef, 
     return [...initial, ...activeItems];
   });
 
+  const [tempUploadsLoaded, setTempUploadsLoaded] = useState(false);
   const onMediaChangeRef = useRef(onMediaChange);
   const mountedRef       = useRef(false);
+  const syncRef          = useRef(null);
+
   useEffect(() => { onMediaChangeRef.current = onMediaChange; }, [onMediaChange]);
+
+  // Инициализируем синхронизацию между вкладками (ТОЛЬКО для главной страницы)
+  useEffect(() => {
+    if (contextKey !== 'compose_main') return;
+
+    const sync = new CrossTabSync('temp_uploads_channel');
+    syncRef.current = sync;
+
+    return () => {
+      sync.close();
+      syncRef.current = null;
+    };
+  }, [contextKey]);
+
+  // Загружаем медиа из temp_uploads API (ТОЛЬКО для главной страницы)
+  useEffect(() => {
+    if (contextKey !== 'compose_main' || tempUploadsLoaded) return;
+
+    const fetchTempUploads = async () => {
+      try {
+        const res = await postsAPI.getTempUploads();
+        if (res.data.media && res.data.media.length > 0) {
+          console.log('[MediaUpload] Restoring from temp_uploads:', res.data.media);
+
+          const restoredItems = res.data.media.map(m => ({
+            id: `restored_${m.id}`,
+            file: null,
+            type: m.type,
+            preview: m.file_path,
+            status: 'done',
+            uploadedUrl: m.file_path,
+            filename: m.file_path.split('/').pop(),
+            progress: 100,
+            thumb: m.thumb || null,
+            isRestored: true, // Помечаем как восстановленное из temp_uploads
+          }));
+
+          setItems(prev => {
+            // Объединяем с существующими, избегая дубликатов
+            const existingUrls = new Set(prev.map(item => item.uploadedUrl));
+            const newItems = restoredItems.filter(item => !existingUrls.has(item.uploadedUrl));
+            return [...prev, ...newItems];
+          });
+        }
+        setTempUploadsLoaded(true);
+      } catch (err) {
+        console.error('[MediaUpload] Failed to fetch temp uploads:', err);
+        setTempUploadsLoaded(true);
+      }
+    };
+
+    fetchTempUploads();
+  }, [contextKey, tempUploadsLoaded]);
+
+  // Перезагрузка медиа при изменении reloadTrigger (синхронизация между вкладками)
+  useEffect(() => {
+    if (!reloadTrigger || contextKey !== 'compose_main') return;
+
+    console.log('[MediaUpload] Reload triggered from another tab');
+
+    const fetchTempUploads = async () => {
+      try {
+        const res = await postsAPI.getTempUploads();
+        if (res.data.media) {
+          console.log('[MediaUpload] Reloaded temp uploads:', res.data.media);
+
+          const restoredItems = res.data.media.map(m => ({
+            id: `restored_${m.id}_${Date.now()}`,
+            file: null,
+            type: m.type,
+            preview: m.file_path,
+            status: 'done',
+            uploadedUrl: m.file_path,
+            filename: m.file_path.split('/').pop(),
+            progress: 100,
+            thumb: m.thumb || null,
+            isRestored: true, // Помечаем как восстановленное из temp_uploads
+          }));
+
+          // Полностью заменяем items на актуальные из API
+          setItems(restoredItems);
+        }
+      } catch (err) {
+        console.error('[MediaUpload] Failed to reload temp uploads:', err);
+      }
+    };
+
+    fetchTempUploads();
+  }, [reloadTrigger, contextKey]);
 
   // Синхронизируем локальные items с глобальным контекстом
   useEffect(() => {
@@ -44,8 +139,11 @@ const MediaUpload = ({ onMediaChange, resetTrigger, imageInputRef, gifInputRef, 
       let hasChanges = false;
       const newItems = [...prev];
 
-      // 1. Обновляем существующие items
+      // 1. Обновляем существующие items (пропускаем восстановленные из temp_uploads)
       for (let i = 0; i < newItems.length; i++) {
+        // Пропускаем медиа, восстановленные из temp_uploads
+        if (newItems[i].isRestored) continue;
+
         const upload = uploadsForContext.find(u => u.id === newItems[i].id);
         if (upload && (
           upload.status !== newItems[i].status ||
@@ -89,15 +187,17 @@ const MediaUpload = ({ onMediaChange, resetTrigger, imageInputRef, gifInputRef, 
   useEffect(() => {
     if (!onMediaChangeRef.current) return;
     onMediaChangeRef.current(
-      items.map(({ file, type, preview, uploadedUrl, status, filename, thumb }) => ({
-        file,
-        type,
-        preview,
-        uploadedUrl: uploadedUrl ?? null,
-        uploading:   status === 'uploading',
-        filename:    filename ?? file?.name ?? '',
-        thumb:       thumb ?? null,
-      }))
+      items
+        .filter(item => item.status !== 'error') // Не передаём файлы с ошибками
+        .map(({ file, type, preview, uploadedUrl, status, filename, thumb }) => ({
+          file,
+          type,
+          preview,
+          uploadedUrl: uploadedUrl ?? null,
+          uploading:   status === 'uploading',
+          filename:    filename ?? file?.name ?? '',
+          thumb:       thumb ?? null,
+        }))
     );
   }, [items]);
 
@@ -120,12 +220,49 @@ const MediaUpload = ({ onMediaChange, resetTrigger, imageInputRef, gifInputRef, 
     // Если загрузка завершена и есть uploadedUrl, удаляем напрямую через API
     if (item?.uploadedUrl) {
       postsAPI.deleteMedia(item.uploadedUrl)
-        .then(() => console.log(`[MediaUpload] Deleted from server: ${item.uploadedUrl}`))
-        .catch(err => console.error('[MediaUpload] Failed to delete from server:', err));
+        .then(() => {
+          console.log(`[MediaUpload] Deleted from server: ${item.uploadedUrl}`);
+
+          // Оповещаем другие вкладки об удалении (только для главной страницы)
+          if (contextKey === 'compose_main' && syncRef.current) {
+            syncRef.current.send({
+              action: 'temp_uploads_changed',
+              reason: 'media_deleted'
+            });
+
+            // Вызываем локальный callback для текущей вкладки
+            if (syncRef.current.localCallback) {
+              syncRef.current.localCallback({
+                action: 'temp_uploads_changed',
+                reason: 'media_deleted'
+              });
+            }
+          }
+        })
+        .catch(err => {
+          console.error('[MediaUpload] Failed to delete from server:', err);
+          // Даже если удаление не удалось, оповещаем вкладки (возможно, уже удалено)
+          if (contextKey === 'compose_main' && syncRef.current) {
+            syncRef.current.send({
+              action: 'temp_uploads_changed',
+              reason: 'media_deleted'
+            });
+
+            if (syncRef.current.localCallback) {
+              syncRef.current.localCallback({
+                action: 'temp_uploads_changed',
+                reason: 'media_deleted'
+              });
+            }
+          }
+        });
     }
 
     // Пытаемся отменить через контекст (на случай если загрузка ещё в процессе)
     cancelUpload(id);
+
+    // Удаляем из глобального контекста загрузки
+    removeUpload(id);
 
     // Удаляем из локального состояния
     setItems(prev => prev.filter(i => i.id !== id));
@@ -224,8 +361,8 @@ const MediaUpload = ({ onMediaChange, resetTrigger, imageInputRef, gifInputRef, 
   return (
     <div className="media-upload">
       {items.length > 0 && (
-        <div className={`media-preview-grid media-preview-${items.length}`}>
-          {items.map(item => {
+        <div className={`media-preview-grid media-preview-${items.filter(it => it.status !== 'error').length}`}>
+          {items.filter(it => it.status !== 'error').map(item => {
             // GIF может быть сконвертирован в .mp4 — проверяем по URL
             const isGifAsMp4 = item.type === 'gif' && item.uploadedUrl?.endsWith('.mp4');
             return (
@@ -251,7 +388,7 @@ const MediaUpload = ({ onMediaChange, resetTrigger, imageInputRef, gifInputRef, 
       {uploadingItems.length > 0 && (
         <div className="video-progress-list">
           {uploadingItems.map(item => (
-            <div key={item.id} className="gif-upload-progress">
+            <div key={item.id} className={`gif-upload-progress ${item.status === 'error' ? 'error' : ''}`}>
               <div className="gif-upload-progress-fill" style={{ width: `${item.progress ?? 0}%` }} />
               <span className="gif-upload-progress-text">
                 {item.filename || item.file?.name}
@@ -263,6 +400,16 @@ const MediaUpload = ({ onMediaChange, resetTrigger, imageInputRef, gifInputRef, 
                 {item.status === 'done'  && ': Загружено'}
                 {item.status === 'error' && ': Ошибка загрузки'}
               </span>
+              {item.status === 'error' && (
+                <button
+                  type="button"
+                  className="progress-close-btn"
+                  onClick={() => handleRemove(item.id)}
+                  title="Закрыть"
+                >
+                  ×
+                </button>
+              )}
             </div>
           ))}
         </div>

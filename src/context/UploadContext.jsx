@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useRef, useCallback, useEffect } from 'react';
 import { postsAPI } from '../api/api';
+import { CrossTabSync } from '../utils/crossTabSync';
 
 const UploadContext = createContext();
 
@@ -19,6 +20,18 @@ export const UploadProvider = ({ children }) => {
   // Хранилище всех активных и завершенных загрузок
   const [uploads, setUploads] = useState(new Map());
   const aborters = useRef(new Map());
+  const syncRef = useRef(null);
+
+  // Инициализируем синхронизацию между вкладками
+  useEffect(() => {
+    const sync = new CrossTabSync('temp_uploads_channel');
+    syncRef.current = sync;
+
+    return () => {
+      sync.close();
+      syncRef.current = null;
+    };
+  }, []);
 
   /**
    * Запускает загрузку файла
@@ -48,14 +61,17 @@ export const UploadProvider = ({ children }) => {
       return newMap;
     });
 
-    console.log(`[UPLOAD] START id=${id} type=${type} file=${file.name}`);
+    console.log(`[UPLOAD] START id=${id} type=${type} file=${file.name} context=${contextKey}`);
 
     try {
       let res;
       if (type === 'video') {
         res = await postsAPI.uploadVideo(file, {
           signal: ctrl.signal,
-          headers: { 'X-Tracking-ID': id },
+          headers: {
+            'X-Tracking-ID': id,
+            'X-Upload-Context': contextKey
+          },
           onUploadProgress: (e) => {
             const pct = e.total ? Math.round((e.loaded / e.total) * 90) : 0;
             setUploads(prev => {
@@ -86,6 +102,9 @@ export const UploadProvider = ({ children }) => {
       } else if (type === 'gif') {
         res = await postsAPI.uploadGif(file, {
           signal: ctrl.signal,
+          headers: {
+            'X-Upload-Context': contextKey
+          },
           onUploadProgress: (e) => {
             const pct = e.total ? Math.round((e.loaded / e.total) * 100) : 0;
             setUploads(prev => {
@@ -116,7 +135,10 @@ export const UploadProvider = ({ children }) => {
       } else if (type === 'image') {
         res = await postsAPI.uploadImages([file], {
           signal: ctrl.signal,
-          headers: { 'X-Tracking-ID': id },
+          headers: {
+            'X-Tracking-ID': id,
+            'X-Upload-Context': contextKey
+          },
           onUploadProgress: (e) => {
             const pct = e.total ? Math.round((e.loaded / e.total) * 100) : 0;
             setUploads(prev => {
@@ -148,6 +170,24 @@ export const UploadProvider = ({ children }) => {
           }
           return newMap;
         });
+      }
+
+      // Оповещаем другие вкладки о новой загрузке (только для главной страницы)
+      if (contextKey === 'compose_main' && syncRef.current) {
+        syncRef.current.send({
+          action: 'temp_uploads_changed',
+          reason: 'media_uploaded'
+        });
+
+        // BroadcastChannel не доставляет событие в ту же вкладку, где оно отправлено
+        // Поэтому вызываем callback напрямую для локального обновления
+        // (если он будет зарегистрирован в будущем)
+        if (syncRef.current.localCallback) {
+          syncRef.current.localCallback({
+            action: 'temp_uploads_changed',
+            reason: 'media_uploaded'
+          });
+        }
       }
     } catch (err) {
       console.error(`[UPLOAD] ERROR id=${id} type=${type}`, err);

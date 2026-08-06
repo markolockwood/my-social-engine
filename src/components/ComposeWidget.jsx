@@ -3,14 +3,16 @@ import { postsAPI } from '../api/api';
 import { useAuth } from '../context/AuthContext';
 import { useUpload } from '../context/UploadContext';
 import MediaUpload from './MediaUpload';
+import { CrossTabSync, debounce } from '../utils/crossTabSync';
 import '../styles/ComposeWidget.css';
 
 function loadDraft(key) {
-  if (!key) return { content: '', uploadedMedia: [] };
+  if (!key) return { content: '' };
   try {
     const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : { content: '', uploadedMedia: [] };
-  } catch { return { content: '', uploadedMedia: [] }; }
+    // Теперь сохраняем ТОЛЬКО текст поста, медиа восстанавливаем из API
+    return raw ? JSON.parse(raw) : { content: '' };
+  } catch { return { content: '' }; }
 }
 
 const ComposeWidget = ({ parentPost = null, onSuccess, placeholder, submitLabel }) => {
@@ -25,55 +27,108 @@ const ComposeWidget = ({ parentPost = null, onSuccess, placeholder, submitLabel 
   const [loading, setLoading]       = useState(false);
   const [error, setError]           = useState('');
   const [resetKey, setResetKey]     = useState(0);
+  const [tempUploadsLoaded, setTempUploadsLoaded] = useState(false);
+  const [reloadTrigger, setReloadTrigger] = useState(0); // Триггер для перезагрузки MediaUpload
   const imageInputRef               = useRef(null);
   const gifInputRef                 = useRef(null);
   const videoInputRef               = useRef(null);
   const mediaFilesRef               = useRef([]);
+  const syncRef                     = useRef(null);
 
   // Синхронизируем ref с state
   useEffect(() => {
     mediaFilesRef.current = mediaFiles;
   }, [mediaFiles]);
 
-  // Восстанавливаем ВСЕ загруженные медиа из черновика (картинки, GIF, видео)
+  // Инициализируем синхронизацию между вкладками (ТОЛЬКО для главной страницы)
+  useEffect(() => {
+    if (parentPost) return; // Только для главной страницы
+
+    // Создаём канал синхронизации
+    const sync = new CrossTabSync('temp_uploads_channel');
+    syncRef.current = sync;
+
+    // Debounced функция перезагрузки медиа из API
+    const debouncedReload = debounce(async () => {
+      try {
+        console.log('[ComposeWidget] Reloading temp uploads from other tab event');
+        // Триггерим перезагрузку в MediaUpload
+        setReloadTrigger(prev => prev + 1);
+      } catch (err) {
+        console.error('[ComposeWidget] Failed to reload temp uploads:', err);
+      }
+    }, 1000);
+
+    // Слушаем события от других вкладок
+    const unsubscribe = sync.listen((message) => {
+      console.log('[ComposeWidget] Received cross-tab message:', message);
+
+      if (message.action === 'temp_uploads_changed') {
+        // Если пост был создан в другой вкладке — очищаем localStorage с черновиком
+        if (message.reason === 'post_created' && draftKey) {
+          console.log('[ComposeWidget] Post created in another tab, clearing draft');
+          localStorage.removeItem(draftKey);
+          setContent(''); // Очищаем поле ввода в неактивной вкладке
+        }
+
+        debouncedReload();
+      }
+    });
+
+    return () => {
+      unsubscribe();
+      sync.close();
+      syncRef.current = null;
+    };
+  }, [parentPost]);
+
+  // Загружаем медиа из temp_uploads (ТОЛЬКО для главной страницы)
+  useEffect(() => {
+    if (parentPost || tempUploadsLoaded) return; // Только для главной страницы, один раз
+
+    const fetchTempUploads = async () => {
+      try {
+        const res = await postsAPI.getTempUploads();
+        if (res.data.media && res.data.media.length > 0) {
+          console.log('[ComposeWidget] Loaded temp uploads from API:', res.data.media);
+          setTempUploadsLoaded(true);
+        }
+      } catch (err) {
+        console.error('[ComposeWidget] Failed to fetch temp uploads:', err);
+        setTempUploadsLoaded(true); // Помечаем как загруженное чтобы не пытаться снова
+      }
+    };
+
+    fetchTempUploads();
+  }, [parentPost, tempUploadsLoaded]);
+
+  // Восстанавливаем медиа из temp_uploads API (вместо localStorage)
   const initialMediaItems = useMemo(() => {
-    if (!draft.uploadedMedia?.length) return [];
-    return draft.uploadedMedia.map(m => ({
-      id:          `restored_${m.url}`,
-      file:        null,
-      type:        m.type,
-      preview:     m.url,
-      status:      'done',
-      uploadedUrl: m.url,
-      filename:    m.filename,
-      progress:    100,
-      thumb:       m.thumb ?? null,
-    }));
+    // Для комментариев не восстанавливаем медиа
+    if (parentPost) return [];
+
+    // Для главной страницы медиа загрузятся через useEffect выше
+    return [];
   }, []); // eslint-disable-line
 
-  // Сохраняем все загруженные медиа в черновик
+  // Сохраняем ТОЛЬКО текст в localStorage (без медиа)
   useEffect(() => {
     if (!draftKey) return;
-    const uploadedMedia = mediaFiles
-      .filter(f => f.uploadedUrl)
-      .map(f => ({ type: f.type, url: f.uploadedUrl, filename: f.filename || '', thumb: f.thumb ?? null }));
 
-    if (content || uploadedMedia.length > 0) {
-      localStorage.setItem(draftKey, JSON.stringify({ content, uploadedMedia }));
+    if (content) {
+      localStorage.setItem(draftKey, JSON.stringify({ content }));
     } else {
       localStorage.removeItem(draftKey);
     }
 
     // Очищаем завершенные загрузки из глобального контекста для главной страницы
-    // Они уже сохранены в localStorage и будут восстановлены из initialItems
-    if (!parentPost && uploadedMedia.length > 0) {
-      // Используем небольшую задержку, чтобы не очищать сразу
+    if (!parentPost && mediaFiles.some(f => f.uploadedUrl)) {
       const timer = setTimeout(() => {
         clearCompleted(contextKey);
       }, 1000);
       return () => clearTimeout(timer);
     }
-  }, [content, mediaFiles, draftKey, parentPost, contextKey, clearCompleted]);
+  }, [content, draftKey, parentPost, contextKey, clearCompleted, mediaFiles]);
 
   // Cleanup: удаляем загруженные медиа при размонтировании (только для комментариев)
   useEffect(() => {
@@ -119,6 +174,23 @@ const ComposeWidget = ({ parentPost = null, onSuccess, placeholder, submitLabel 
       setMediaFiles([]);
       setResetKey(k => k + 1);
       if (draftKey) localStorage.removeItem(draftKey);
+
+      // Оповещаем другие вкладки об изменении temp_uploads (только для главной страницы)
+      if (!parentPost && syncRef.current) {
+        syncRef.current.send({
+          action: 'temp_uploads_changed',
+          reason: 'post_created'
+        });
+
+        // Вызываем локальный callback для текущей вкладки
+        if (syncRef.current.localCallback) {
+          syncRef.current.localCallback({
+            action: 'temp_uploads_changed',
+            reason: 'post_created'
+          });
+        }
+      }
+
       if (onSuccess) onSuccess(res.data.post);
     } catch (err) {
       setError(err.response?.data?.error || t('compose.error'));
@@ -158,6 +230,7 @@ const ComposeWidget = ({ parentPost = null, onSuccess, placeholder, submitLabel 
         <MediaUpload
           onMediaChange={setMediaFiles}
           resetTrigger={resetKey}
+          reloadTrigger={reloadTrigger}
           imageInputRef={imageInputRef}
           gifInputRef={gifInputRef}
           videoInputRef={videoInputRef}

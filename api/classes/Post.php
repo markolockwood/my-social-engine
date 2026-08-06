@@ -100,8 +100,24 @@ class Post {
         if (empty($content)) throw new Exception("Post content cannot be empty");
         if (strlen($content) > 280)  throw new Exception("Post content cannot exceed 280 characters");
 
-        // Проверка количества медиафайлов
+        // Проверяем количество медиафайлов
         if (count($mediaFiles) > 4) throw new Exception("Maximum 4 media files allowed");
+
+        // Удаляем медиа из temp_uploads ПЕРЕД созданием поста (предотвращение дублирования)
+        // Только для постов (parentId === null) — комментарии не используют temp_uploads
+        if (!empty($mediaFiles) && $parentId === null) {
+            foreach ($mediaFiles as $media) {
+                $stmt = $this->db->query(
+                    "DELETE FROM temp_uploads WHERE user_id = ? AND file_path = ? RETURNING id",
+                    [$userId, $media['url']]
+                );
+                $deleted = $stmt->fetch();
+
+                if (!$deleted) {
+                    throw new Exception("Медиа недоступно. Возможно, оно уже используется в другом посте.");
+                }
+            }
+        }
 
         // Проверяем существование родительского поста
         if ($parentId !== null) {
@@ -124,18 +140,6 @@ class Post {
                     "INSERT INTO post_media (post_id, media_url, media_type, display_order, thumb_url) VALUES (?, ?, ?, ?, ?)",
                     [$postId, $media['url'], $media['type'], $index, $thumbUrl]
                 );
-            }
-
-            // Удаляем медиа из temp_uploads — теперь они привязаны к посту
-            try {
-                foreach ($mediaFiles as $media) {
-                    $this->db->query(
-                        "DELETE FROM temp_uploads WHERE user_id = ? AND file_path = ?",
-                        [$userId, $media['url']]
-                    );
-                }
-            } catch (Exception $e) {
-                // Игнорируем ошибки (таблица может не существовать в старых установках)
             }
         }
 

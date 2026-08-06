@@ -1,9 +1,9 @@
 #!/usr/bin/env php
 <?php
 /**
- * Cron-скрипт для очистки временных загрузок старше 48 часов
+ * Cron-скрипт для очистки временных загрузок старше 6 часов
  * Запускать: php cleanup_temp_uploads.php
- * Или в crontab: 0 3 * * * php /path/to/cleanup_temp_uploads.php
+ * Или в crontab: 0 */3 * * * php /path/to/cleanup_temp_uploads.php
  */
 
 require_once __DIR__ . '/api/classes/Database.php';
@@ -44,8 +44,8 @@ try {
         $db->query("DELETE FROM temp_uploads WHERE id = ?", [$upload['id']]);
     }
 
-    // 2. Получаем записи старше 48 часов
-    $cutoff = date('Y-m-d H:i:s', strtotime('-48 hours'));
+    // 2. Получаем записи старше 6 часов
+    $cutoff = date('Y-m-d H:i:s', strtotime('-6 hours'));
     $result = $db->query(
         "SELECT id, file_path, media_type FROM temp_uploads WHERE created_at < ?",
         [$cutoff]

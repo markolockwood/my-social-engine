@@ -54,6 +54,7 @@ export const postsAPI = {
   incrementView: (id) => api.post(`/posts/${id}/view`),
   deleteMedia: (url) => api.delete('/upload/media', { data: { url } }),
   cancelUpload: (trackingId) => api.delete('/upload/cancel', { data: { tracking_id: trackingId } }),
+  getTempUploads: () => api.get('/temp-uploads'),
   uploadImages: (files, config = {}) => {
     const form = new FormData();
     files.forEach(file => form.append('images[]', file));

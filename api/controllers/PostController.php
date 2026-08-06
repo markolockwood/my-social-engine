@@ -47,6 +47,16 @@ class PostController {
         $isQuickReply = isset($input['is_quick_reply']) && $input['is_quick_reply'] ? true : false;
         $mediaFiles = isset($input['media_files']) && is_array($input['media_files']) ? $input['media_files'] : [];
 
+        // Валидация URL медиафайлов — только пути внутри /uploads/
+        foreach ($mediaFiles as $media) {
+            $url = $media['url'] ?? '';
+            if (!preg_match('#^/uploads/(videos|posts|gifs)/#', $url)) {
+                http_response_code(400);
+                echo json_encode(['error' => 'Invalid media URL: ' . $url]);
+                exit();
+            }
+        }
+
         $post = new Post();
         $postId = $post->create($authUser['userId'], $input['content'] ?? '', $parentId, $isQuickReply, $mediaFiles);
 
@@ -186,6 +196,34 @@ class PostController {
             exit();
         }
 
+        // Проверяем контекст загрузки
+        $context = $_SERVER['HTTP_X_UPLOAD_CONTEXT'] ?? '';
+        $isMainCompose = ($context === 'compose_main');
+
+        // Если это загрузка для главной страницы, проверяем лимит temp_uploads
+        // Используем session-level advisory lock — держится до явного unlock
+        if ($isMainCompose) {
+            try {
+                $db = Database::getInstance();
+                $db->query("SELECT pg_advisory_lock(?)", [$authUser['userId']]);
+
+                $stmt = $db->query(
+                    "SELECT COUNT(*) as cnt FROM temp_uploads WHERE user_id = ?",
+                    [$authUser['userId']]
+                );
+                $count = (int)$stmt->fetch()['cnt'];
+
+                if ($count + $fileCount > 4) {
+                    $db->query("SELECT pg_advisory_unlock(?)", [$authUser['userId']]);
+                    http_response_code(429);
+                    echo json_encode(['error' => 'Достигнут лимит 4 медиа. Удалите старые файлы перед загрузкой новых.']);
+                    exit();
+                }
+            } catch (Exception $e) {
+                error_log("Failed to check temp_uploads limit: " . $e->getMessage());
+            }
+        }
+
         $allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
         $maxSize = 5 * 1024 * 1024;
         $uploadedUrls = [];
@@ -246,18 +284,23 @@ class PostController {
             ];
         }
 
-        // Регистрируем все изображения как временные загрузки
-        try {
-            $db = Database::getInstance();
-            $trackingId = $_SERVER['HTTP_X_TRACKING_ID'] ?? null;
-            foreach ($uploadedUrls as $item) {
-                $db->query(
-                    "INSERT INTO temp_uploads (user_id, file_path, media_type, tracking_id) VALUES (?, ?, ?, ?)",
-                    [$authUser['userId'], $item['url'], 'image', $trackingId]
-                );
+        // Регистрируем все изображения как временные загрузки (ТОЛЬКО для главной страницы)
+        if ($isMainCompose) {
+            try {
+                $db = Database::getInstance();
+                $trackingId = $_SERVER['HTTP_X_TRACKING_ID'] ?? null;
+                foreach ($uploadedUrls as $item) {
+                    $db->query(
+                        "INSERT INTO temp_uploads (user_id, file_path, media_type, tracking_id) VALUES (?, ?, ?, ?)",
+                        [$authUser['userId'], $item['url'], 'image', $trackingId]
+                    );
+                }
+            } catch (Exception $e) {
+                error_log("Failed to register image uploads in temp_uploads: " . $e->getMessage());
+            } finally {
+                // Снимаем блокировку после INSERT
+                try { $db->query("SELECT pg_advisory_unlock(?)", [$authUser['userId']]); } catch (Exception $e) {}
             }
-        } catch (Exception $e) {
-            error_log("Failed to register image uploads in temp_uploads: " . $e->getMessage());
         }
 
         $this->sendResponse(['urls' => $uploadedUrls], 201);
@@ -326,6 +369,34 @@ class PostController {
             exit();
         }
 
+        // Проверяем контекст загрузки
+        $context = $_SERVER['HTTP_X_UPLOAD_CONTEXT'] ?? '';
+        $isMainCompose = ($context === 'compose_main');
+
+        // Если это загрузка для главной страницы, проверяем лимит temp_uploads
+        // Используем session-level advisory lock — держится до явного unlock
+        if ($isMainCompose) {
+            try {
+                $db = Database::getInstance();
+                $db->query("SELECT pg_advisory_lock(?)", [$authUser['userId']]);
+
+                $stmt = $db->query(
+                    "SELECT COUNT(*) as cnt FROM temp_uploads WHERE user_id = ?",
+                    [$authUser['userId']]
+                );
+                $count = (int)$stmt->fetch()['cnt'];
+
+                if ($count >= 4) {
+                    $db->query("SELECT pg_advisory_unlock(?)", [$authUser['userId']]);
+                    http_response_code(429);
+                    echo json_encode(['error' => 'Достигнут лимит 4 медиа. Удалите старые файлы перед загрузкой новых.']);
+                    exit();
+                }
+            } catch (Exception $e) {
+                error_log("Failed to check temp_uploads limit: " . $e->getMessage());
+            }
+        }
+
         $file = $_FILES['gif'];
 
         if ($file['error'] !== UPLOAD_ERR_OK) {
@@ -367,16 +438,22 @@ class PostController {
         }
 
         // Регистрируем СРАЗУ после сохранения (до конвертации), чтобы отмена работала корректно
+        // ТОЛЬКО для главной страницы
         $trackingId = $_SERVER['HTTP_X_TRACKING_ID'] ?? null;
         $tempPath   = '/uploads/gifs/' . $baseName . '.gif'; // начальный путь, обновим после конвертации
-        try {
-            $db = Database::getInstance();
-            $db->query(
-                "INSERT INTO temp_uploads (user_id, file_path, media_type, tracking_id) VALUES (?, ?, ?, ?)",
-                [$authUser['userId'], $tempPath, 'gif', $trackingId]
-            );
-        } catch (Exception $e) {
-            error_log("Failed to register gif upload in temp_uploads: " . $e->getMessage());
+        if ($isMainCompose) {
+            try {
+                $db = Database::getInstance();
+                $db->query(
+                    "INSERT INTO temp_uploads (user_id, file_path, media_type, tracking_id) VALUES (?, ?, ?, ?)",
+                    [$authUser['userId'], $tempPath, 'gif', $trackingId]
+                );
+            } catch (Exception $e) {
+                error_log("Failed to register gif upload in temp_uploads: " . $e->getMessage());
+            } finally {
+                // Снимаем блокировку после INSERT — конвертация уже вне критической секции
+                try { $db->query("SELECT pg_advisory_unlock(?)", [$authUser['userId']]); } catch (Exception $e) {}
+            }
         }
 
         // Конвертация GIF в MP4
@@ -386,15 +463,17 @@ class PostController {
         if ($converted) {
             unlink($gifPath);
             $url = '/uploads/gifs/' . $baseName . '.mp4';
-            // Обновляем путь в БД на mp4
-            try {
-                $db = Database::getInstance();
-                $db->query(
-                    "UPDATE temp_uploads SET file_path = ? WHERE tracking_id = ? AND user_id = ?",
-                    [$url, $trackingId, $authUser['userId']]
-                );
-            } catch (Exception $e) {
-                error_log("Failed to update gif path in temp_uploads: " . $e->getMessage());
+            // Обновляем путь в БД на mp4 (ТОЛЬКО если это главная страница)
+            if ($isMainCompose) {
+                try {
+                    $db = Database::getInstance();
+                    $db->query(
+                        "UPDATE temp_uploads SET file_path = ? WHERE tracking_id = ? AND user_id = ?",
+                        [$url, $trackingId, $authUser['userId']]
+                    );
+                } catch (Exception $e) {
+                    error_log("Failed to update gif path in temp_uploads: " . $e->getMessage());
+                }
             }
         } else {
             $url = '/uploads/gifs/' . $baseName . '.gif';
@@ -460,12 +539,15 @@ class PostController {
      * Для HLS-видео удаляет всю директорию {uuid}/
      */
     public function deleteUploadedMedia() {
-        AuthMiddleware::requireAuth();
+        $authUser = AuthMiddleware::requireAuth();
 
         $input = $this->getInput();
         $url   = trim($input['url'] ?? '');
 
+        error_log("[deleteUploadedMedia] User {$authUser['userId']} trying to delete: {$url}");
+
         if (!preg_match('#^/uploads/(videos|posts|gifs)/#', $url)) {
+            error_log("[deleteUploadedMedia] Invalid URL format: {$url}");
             http_response_code(400);
             echo json_encode(['error' => 'Invalid URL']);
             exit();
@@ -477,10 +559,21 @@ class PostController {
         if (preg_match('#^/uploads/videos/([a-f0-9]+)/master\.m3u8$#', $url, $m)) {
             $dir = $base . '/uploads/videos/' . $m[1];
             if (is_dir($dir)) $this->deleteDirectory($dir);
-            // Удаляем запись из temp_uploads
+
+            // Удаляем запись из temp_uploads ТОЛЬКО если это медиа принадлежит текущему пользователю
             try {
                 $db = Database::getInstance();
-                $db->query("DELETE FROM temp_uploads WHERE file_path = ?", [$m[1]]);
+                $stmt = $db->query(
+                    "DELETE FROM temp_uploads WHERE file_path = ? AND user_id = ? RETURNING id",
+                    [$url, $authUser['userId']]
+                );
+                $deleted = $stmt->fetch();
+
+                if (!$deleted) {
+                    // Медиа не найдено в temp_uploads или не принадлежит пользователю
+                    // Это не ошибка - возможно, медиа уже привязано к посту
+                    error_log("Video not found in temp_uploads or does not belong to user: {$url}");
+                }
             } catch (Exception $e) {
                 error_log("Failed to delete video from temp_uploads: " . $e->getMessage());
             }
@@ -488,21 +581,43 @@ class PostController {
         }
 
         // Одиночный файл (картинки, GIF)
-        $filePath = $base . $url;
-        if (file_exists($filePath)) {
-            unlink($filePath);
-            if (strpos($url, '/uploads/posts/') === 0) {
-                $thumb = $base . '/uploads/posts/thumbs/' . basename($url);
-                if (file_exists($thumb)) unlink($thumb);
-            }
-        }
-
-        // Удаляем запись из temp_uploads
+        // Сначала проверяем владельца в БД, потом удаляем файл
         try {
             $db = Database::getInstance();
-            $db->query("DELETE FROM temp_uploads WHERE file_path = ?", [$url]);
+
+            error_log("[deleteUploadedMedia] Checking ownership for: {$url}, user: {$authUser['userId']}");
+
+            $stmt = $db->query(
+                "DELETE FROM temp_uploads WHERE file_path = ? AND user_id = ? RETURNING id",
+                [$url, $authUser['userId']]
+            );
+            $deleted = $stmt->fetch();
+
+            if (!$deleted) {
+                // Медиа не найдено в temp_uploads или не принадлежит пользователю
+                error_log("[deleteUploadedMedia] Media not found in temp_uploads or access denied: {$url}");
+                http_response_code(404);
+                echo json_encode(['error' => 'Медиа не найдено или не принадлежит вам']);
+                exit();
+            }
+
+            error_log("[deleteUploadedMedia] Successfully deleted from temp_uploads: {$url}");
+
+            // Если удаление из БД успешно - удаляем файл с диска
+            $filePath = $base . $url;
+            if (file_exists($filePath)) {
+                unlink($filePath);
+                if (strpos($url, '/uploads/posts/') === 0) {
+                    $thumb = $base . '/uploads/posts/thumbs/' . basename($url);
+                    if (file_exists($thumb)) unlink($thumb);
+                }
+                error_log("[deleteUploadedMedia] Successfully deleted file from disk: {$filePath}");
+            }
         } catch (Exception $e) {
-            error_log("Failed to delete media from temp_uploads: " . $e->getMessage());
+            error_log("[deleteUploadedMedia] Exception: " . $e->getMessage());
+            http_response_code(500);
+            echo json_encode(['error' => 'Ошибка при удалении медиа']);
+            exit();
         }
 
         $this->sendResponse(['ok' => true]);
@@ -522,7 +637,7 @@ class PostController {
 
     /**
      * Универсальное удаление медиафайлов
-     * @param string $path Путь к файлу (UUID для видео, полный путь для остальных)
+     * @param string $path Путь к файлу (полный путь для всех типов медиа)
      * @param string $mediaType Тип медиа: 'video', 'image', 'gif'
      * @return bool Успешно ли удалён файл
      */
@@ -531,12 +646,15 @@ class PostController {
 
         switch ($mediaType) {
             case 'video':
-                // Для видео path это UUID
-                exec("pkill -f 'ffmpeg.*{$path}' 2>&1");
-                $dir = $base . '/uploads/videos/' . $path;
-                if (is_dir($dir)) {
-                    $this->deleteDirectory($dir);
-                    return true;
+                // Для видео path теперь полный путь, извлекаем UUID
+                if (preg_match('#^/uploads/videos/([a-f0-9]+)/master\.m3u8$#', $path, $matches)) {
+                    $uuid = $matches[1];
+                    exec("pkill -f 'ffmpeg.*{$uuid}' 2>&1");
+                    $dir = $base . '/uploads/videos/' . $uuid;
+                    if (is_dir($dir)) {
+                        $this->deleteDirectory($dir);
+                        return true;
+                    }
                 }
                 break;
 
@@ -566,6 +684,34 @@ class PostController {
         set_time_limit(600); // 10 минут максимум на конвертацию
 
         $authUser = AuthMiddleware::requireAuth();
+
+        // Проверяем контекст загрузки
+        $context = $_SERVER['HTTP_X_UPLOAD_CONTEXT'] ?? '';
+        $isMainCompose = ($context === 'compose_main');
+
+        // Если это загрузка для главной страницы, проверяем лимит temp_uploads
+        // Используем session-level advisory lock — держится до явного unlock
+        if ($isMainCompose) {
+            try {
+                $db = Database::getInstance();
+                $db->query("SELECT pg_advisory_lock(?)", [$authUser['userId']]);
+
+                $stmt = $db->query(
+                    "SELECT COUNT(*) as cnt FROM temp_uploads WHERE user_id = ?",
+                    [$authUser['userId']]
+                );
+                $count = (int)$stmt->fetch()['cnt'];
+
+                if ($count >= 4) {
+                    $db->query("SELECT pg_advisory_unlock(?)", [$authUser['userId']]);
+                    http_response_code(429);
+                    echo json_encode(['error' => 'Достигнут лимит 4 медиа. Удалите старые файлы перед загрузкой новых.']);
+                    exit();
+                }
+            } catch (Exception $e) {
+                error_log("Failed to check temp_uploads limit: " . $e->getMessage());
+            }
+        }
 
         // Rate limiting: не более 2 одновременных конвертаций на пользователя
         try {
@@ -640,16 +786,22 @@ class PostController {
         $url = '/uploads/videos/' . $uuid . '/master.m3u8';
 
         // Получаем tracking_id из заголовка и регистрируем СРАЗУ после сохранения файла
-        // Сохраняем только UUID для простого удаления всей папки
+        // Сохраняем ПОЛНЫЙ ПУТЬ (как для изображений и GIF) для единообразия
+        // ТОЛЬКО для главной страницы
         $trackingId = $_SERVER['HTTP_X_TRACKING_ID'] ?? null;
-        try {
-            $db = Database::getInstance();
-            $db->query(
-                "INSERT INTO temp_uploads (user_id, file_path, media_type, tracking_id) VALUES (?, ?, ?, ?)",
-                [$authUser['userId'], $uuid, 'video', $trackingId]
-            );
-        } catch (Exception $e) {
-            error_log("Failed to register video upload in temp_uploads: " . $e->getMessage());
+        if ($isMainCompose) {
+            try {
+                $db = Database::getInstance();
+                $db->query(
+                    "INSERT INTO temp_uploads (user_id, file_path, media_type, tracking_id) VALUES (?, ?, ?, ?)",
+                    [$authUser['userId'], $url, 'video', $trackingId]
+                );
+            } catch (Exception $e) {
+                error_log("Failed to register video upload in temp_uploads: " . $e->getMessage());
+            } finally {
+                // Снимаем блокировку после INSERT — конвертация уже вне критической секции
+                try { $db->query("SELECT pg_advisory_unlock(?)", [$authUser['userId']]); } catch (Exception $e) {}
+            }
         }
 
         // Определяем размеры оригинала, чтобы не апскейлить
@@ -916,6 +1068,61 @@ class PostController {
      */
     private function getInput() {
         return json_decode(file_get_contents('php://input'), true) ?? [];
+    }
+
+    /**
+     * GET /temp-uploads — получить незавершенные медиа текущего пользователя
+     * Возвращает только медиа для главной страницы (compose_main)
+     */
+    public function getTempUploads() {
+        $authUser = AuthMiddleware::requireAuth();
+
+        try {
+            $db = Database::getInstance();
+            $stmt = $db->query(
+                "SELECT id, file_path, media_type, created_at, tracking_id
+                 FROM temp_uploads
+                 WHERE user_id = ?
+                 ORDER BY created_at ASC",
+                [$authUser['userId']]
+            );
+            $uploads = $stmt->fetchAll();
+
+            // Формируем ответ с полными данными для восстановления на клиенте
+            $media = [];
+            $basePath = realpath(__DIR__ . '/../../');
+
+            foreach ($uploads as $upload) {
+                // Для видео проверяем существование файла master.m3u8
+                // Если файла нет - конвертация ещё идёт, не возвращаем это видео
+                if ($upload['media_type'] === 'video') {
+                    $videoPath = $basePath . $upload['file_path'];
+                    if (!file_exists($videoPath)) {
+                        error_log("Video still converting, skipping: " . $upload['file_path']);
+                        continue; // Пропускаем недоконвертированные видео
+                    }
+                }
+
+                $item = [
+                    'id' => (int)$upload['id'],
+                    'file_path' => $upload['file_path'],
+                    'type' => $upload['media_type'],
+                    'created_at' => $upload['created_at'],
+                ];
+
+                // Для изображений добавляем thumbnail
+                if ($upload['media_type'] === 'image' && strpos($upload['file_path'], '/uploads/posts/') === 0) {
+                    $item['thumb'] = '/uploads/posts/thumbs/' . basename($upload['file_path']);
+                }
+
+                $media[] = $item;
+            }
+
+            $this->sendResponse(['media' => $media]);
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode(['error' => 'Failed to fetch temp uploads: ' . $e->getMessage()]);
+        }
     }
 
     /**

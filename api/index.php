@@ -49,6 +49,7 @@ try {
     $router->post('/upload/post-video', 'PostController', 'uploadPostVideo');
     $router->delete('/upload/media', 'PostController', 'deleteUploadedMedia');
     $router->delete('/upload/cancel', 'PostController', 'cancelUpload');
+    $router->get('/temp-uploads', 'PostController', 'getTempUploads');
 
     // === USER ROUTES ===
     $router->get('/users/{username}', 'UserController', 'profile');
