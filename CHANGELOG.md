@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 **[Русская версия / Russian version](CHANGELOG_RU.md)**
 
-## [1.6.0.1] - 2026-08-05
+## [1.6.0.1] - 2026-08-06
 
 ### New Features
 
