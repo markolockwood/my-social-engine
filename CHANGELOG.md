@@ -4,6 +4,112 @@ All notable changes to this project will be documented in this file.
 
 **[Русская версия / Russian version](CHANGELOG_RU.md)**
 
+## [1.7.0] - 2026-08-07
+
+### New Features
+
+#### Infinite Scroll Pagination
+- **Post pagination on main feed**:
+  - Initial load: 25 posts
+  - Load more on scroll: 15 posts at a time
+  - Automatic loading via Intersection Observer
+  - "No more posts" indicator at the end of feed
+- **Comment pagination**:
+  - Initial load: 15 comments
+  - Load more on scroll: 10 comments at a time
+  - Works on post detail page and lightbox
+  - "No more replies" indicator at the end of list
+
+#### Comment Sorting
+- **Three sorting types**:
+  - **Recent** - by creation time, newest first (default)
+  - **Relevant** - by formula: likes × 2 + time
+  - **Likes** - by number of likes
+- **Twitter-style dropdown**:
+  - Button shows current sort: "Recent ›", "Relevant ›", "Likes ›"
+  - Dropdown menu with header "Sort replies"
+  - Checkmark on active item
+- **Sorting without page reload**
+- **Conditional display**:
+  - Sort dropdown shows only if there are comments
+  - "View quotes →" shows only if there are quick replies
+- Works on post detail page and lightbox
+
+#### Auto-updating Counters When Viewing Post
+- **Polling every 15 seconds** for single open post:
+  - Update likes count
+  - Update comments count
+  - Update views count
+  - Sync like status (is_liked)
+- **Lightweight SQL query** - only counters without JOIN and media
+- Works on post detail page and lightbox
+- **Load**: 500 concurrent users = ~33 requests/sec
+
+#### Show New Comments
+- **Polling every 20 seconds** to check for new comments
+- **Banner** "Show N new replies" when new comments appear
+- **Click on banner** loads and shows fresh comments
+- Works on post detail page and lightbox
+
+#### Global Post Data Synchronization (PostsContext)
+- **Centralized state management** for all posts in the app
+- **Cross-component synchronization**:
+  - Like in MediaLightbox reflects in Post and vice versa
+  - Comment counters update everywhere simultaneously
+  - Changes visible in all components displaying the same post
+- **Auto-update post times** every minute
+- **Optimistic updates** with rollback on error
+- API methods: `initPost()`, `updatePost()`, `toggleLike()`, `incrementComments()`, `incrementViews()`, `getPostState()`, `removePost()`
+
+#### Lightbox Improvements
+- **Body scroll lock** when lightbox is open
+- **Visible scrollbar** for comments in right panel
+- Background page scroll blocked, only comments scrollable
+
+### Backend
+
+#### New API Endpoints
+- `GET /api/posts/{id}/counters` - get only post counters (lightweight query for polling)
+- Support for `limit` and `offset` in `GET /api/posts/{id}/replies` for comment pagination
+
+#### Database Changes
+- Added `quick_replies_count` counter to base SELECT for all posts
+- Counts number of quick replies to post: `SELECT COUNT(*) FROM posts WHERE parent_id = p.id AND is_quick_reply = true`
+
+#### Profile "Posts" Tab Logic
+- **Fixed logic** for displaying user posts:
+  - Shows: original posts (`parent_id IS NULL`) + quick replies (`is_quick_reply = true`)
+  - Hides: regular comments on others' posts (they go to "Replies" tab)
+- Matches Twitter/X logic
+
+### Improvements
+
+#### Translation System
+- **Parameter support** in `t()` function:
+  - `t('post_page.show_new_replies', { count: 5 })` → "Show 5 new replies"
+  - Replaces all `{{variable}}` with actual values
+- Full multilingual support for all new features (EN/RU)
+
+#### Performance Optimization
+- **Lightweight SQL queries** for polling - only necessary fields
+- **Minimal DB load** - one query per one open post
+- **Intersection Observer** instead of scroll events for pagination
+
+### Bug Fixes
+
+#### Critical Bugs
+- **Posts not showing on profile page**: `getByUserId()` query returned all posts including regular comments. Added filter `AND (p.parent_id IS NULL OR p.is_quick_reply = true)`
+- **Counters not updating visually**: Used `initPost()` instead of `updatePost()` in polling, which didn't trigger re-render. Fixed to use `updatePost()`
+
+#### SQL Fixes
+- Changed `TRUE/FALSE` to lowercase `true/false` in SQL queries for consistency (PostgreSQL)
+
+### Technical Details
+
+#### New Components
+- `src/components/RepliesSortDropdown.jsx` - comment sorting dropdown
+- `src/context/PostsContext.jsx` - global post management context
+
 ## [1.6.0.1] - 2026-08-06
 
 ### New Features

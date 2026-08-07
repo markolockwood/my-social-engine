@@ -41,7 +41,8 @@
     "error": "Ошибка при загрузке постов",
     "empty": "Пока нет постов. Будьте первым!",
     "trending": "Актуальные темы",
-    "search": "Поиск"
+    "search": "Поиск",
+    "no_more_posts": "Больше постов нет"
   },
   "compose": {
     "placeholder": "Что происходит?",
@@ -92,9 +93,11 @@
     "comments_count": "ответов",
     "likes_count": "лайков",
     "show_new_posts": "Показать {{count}} постов",
+    "show_new_replies": "Показать {{count}} новых комментариев",
     "retweet": "Ретвитнуть",
     "unretweet": "Отменить ретвит",
-    "retweet_error": "Ошибка при ретвите"
+    "retweet_error": "Ошибка при ретвите",
+    "no_more_replies": "Больше комментариев нет"
   },
   "edit_profile": {
     "button": "Редактировать профиль",
@@ -114,5 +117,11 @@
     "quality": "Качество",
     "normal": "Обычная",
     "auto": "Авто"
+  },
+  "replies_sort": {
+    "title": "Сортировка ответов",
+    "recent": "Последние",
+    "relevant": "Релевантные",
+    "likes": "По лайкам"
   }
 }

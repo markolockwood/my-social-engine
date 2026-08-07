@@ -14,18 +14,34 @@ import '../styles/Home.css';
 const Home = () => {
   const [posts, setPosts]       = useState([]);
   const [loading, setLoading]   = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError]       = useState('');
   const [newPosts, setNewPosts] = useState([]);
+  const [hasMore, setHasMore]   = useState(true);
   const latestIdRef             = useRef(0);
+  const offsetRef               = useRef(0);
+  const observerRef             = useRef(null);
   const { t } = useAuth();
 
-  useEffect(() => { loadPosts(); }, []);
+  useEffect(() => { loadPosts(true); }, []);
 
-  const loadPosts = async () => {
+  const loadPosts = async (isInitial = false) => {
     try {
-      setLoading(true);
-      const response = await postsAPI.getFeed();
+      if (isInitial) {
+        setLoading(true);
+        offsetRef.current = 0;
+      } else {
+        setLoadingMore(true);
+      }
+
+      const limit = isInitial ? 25 : 15;
+      const response = await postsAPI.getFeed(limit, offsetRef.current);
       const postsData = response.data.posts;
+
+      // Если вернулось меньше постов, чем запрошено - это последняя страница
+      if (postsData.length < limit) {
+        setHasMore(false);
+      }
 
       // Загружаем родительские посты для быстрых ответов (is_quick_reply = true)
       // Они будут отображаться как quoted posts внутри твитов
@@ -43,31 +59,72 @@ const Home = () => {
         })
       );
 
-      setPosts(postsWithParents);
-      latestIdRef.current = postsWithParents[0]?.id || 0;
+      if (isInitial) {
+        setPosts(postsWithParents);
+        latestIdRef.current = postsWithParents[0]?.id || 0;
+      } else {
+        setPosts(prev => [...prev, ...postsWithParents]);
+      }
+
+      offsetRef.current += postsData.length;
     } catch (err) {
       setError(t('feed.error'));
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   };
 
   const handlePostCreated = (newPost) => {
     setPosts(prev => [newPost, ...prev]);
     latestIdRef.current = Math.max(latestIdRef.current, newPost.id);
+    offsetRef.current += 1; // Увеличиваем offset так как добавили пост
   };
-  const handlePostDeleted = (postId) => setPosts(prev => prev.filter((p) => p.id !== postId));
+  const handlePostDeleted = (postId) => {
+    setPosts(prev => prev.filter((p) => p.id !== postId));
+    offsetRef.current = Math.max(0, offsetRef.current - 1); // Уменьшаем offset
+  };
 
   const handleShowNewPosts = () => {
     setPosts(prev => [...newPosts, ...prev]);
     latestIdRef.current = newPosts[0]?.id || latestIdRef.current;
+    offsetRef.current += newPosts.length; // Увеличиваем offset на количество новых постов
     setNewPosts([]);
   };
+
+  // Intersection Observer для определения когда пользователь достиг конца списка
+  const lastPostRef = useRef(null);
+
+  useEffect(() => {
+    if (loading || loadingMore || !hasMore) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          loadPosts(false);
+        }
+      },
+      { threshold: 0.1, rootMargin: '100px' }
+    );
+
+    if (lastPostRef.current) {
+      observer.observe(lastPostRef.current);
+    }
+
+    observerRef.current = observer;
+
+    return () => {
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+      }
+    };
+  }, [loading, loadingMore, hasMore, posts.length]);
 
   useEffect(() => {
     const poll = async () => {
       try {
-        const res = await postsAPI.getFeed();
+        // Для проверки новых постов загружаем только первые 25
+        const res = await postsAPI.getFeed(25, 0);
         const fetched = res.data.posts;
         const fresh = fetched.filter(p => p.id > latestIdRef.current);
         if (fresh.length === 0) return;
@@ -118,9 +175,27 @@ const Home = () => {
           <div className="empty-state"><p>{t('feed.empty')}</p></div>
         )}
 
-        {!loading && posts.map((post) => (
-          <Post key={post.id} post={post} quotedPost={post.quotedPost} onDelete={handlePostDeleted} />
-        ))}
+        {!loading && posts.map((post, index) => {
+          // Добавляем ref к последнему посту для Intersection Observer
+          const isLastPost = index === posts.length - 1;
+          return (
+            <div key={post.id} ref={isLastPost ? lastPostRef : null}>
+              <Post post={post} quotedPost={post.quotedPost} onDelete={handlePostDeleted} />
+            </div>
+          );
+        })}
+
+        {loadingMore && (
+          <div className="loading-container">
+            <div className="loading-spinner">{t('feed.loading')}</div>
+          </div>
+        )}
+
+        {!loading && !loadingMore && !hasMore && posts.length > 0 && (
+          <div className="empty-state">
+            <p>{t('feed.no_more_posts') || 'Больше постов нет'}</p>
+          </div>
+        )}
       </main>
 
       <aside className="right">

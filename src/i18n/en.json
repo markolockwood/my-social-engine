@@ -41,7 +41,8 @@
     "error": "Error loading posts",
     "empty": "No posts yet. Be the first!",
     "trending": "Trending",
-    "search": "Search"
+    "search": "Search",
+    "no_more_posts": "No more posts"
   },
   "compose": {
     "placeholder": "What's happening?",
@@ -92,9 +93,11 @@
     "comments_count": "replies",
     "likes_count": "likes",
     "show_new_posts": "Show {{count}} posts",
+    "show_new_replies": "Show {{count}} new replies",
     "retweet": "Retweet",
     "unretweet": "Undo retweet",
-    "retweet_error": "Failed to retweet"
+    "retweet_error": "Failed to retweet",
+    "no_more_replies": "No more replies"
   },
   "edit_profile": {
     "button": "Edit profile",
@@ -114,5 +117,11 @@
     "quality": "Quality",
     "normal": "Normal",
     "auto": "Auto"
+  },
+  "replies_sort": {
+    "title": "Sort replies",
+    "recent": "Recent",
+    "relevant": "Relevant",
+    "likes": "Likes"
   }
 }

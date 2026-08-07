@@ -115,16 +115,32 @@ class PostController {
     }
 
     /**
-     * GET /posts/{id}/replies — ответы на пост
+     * GET /posts/{id}/replies — ответы на пост (с пагинацией)
      */
     public function replies($id) {
         $authUser = AuthMiddleware::getAuthUser();
         $userId = $authUser ? $authUser['userId'] : null;
 
+        $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 50;
+        $offset = isset($_GET['offset']) ? (int)$_GET['offset'] : 0;
+
         $post = new Post();
-        $replies = $post->getReplies($id, $userId);
+        $replies = $post->getReplies($id, $userId, $limit, $offset);
 
         $this->sendResponse(['posts' => $replies]);
+    }
+
+    /**
+     * GET /posts/{id}/counters — получить только счетчики поста (легкий запрос)
+     */
+    public function counters($id) {
+        $authUser = AuthMiddleware::getAuthUser();
+        $userId = $authUser ? $authUser['userId'] : null;
+
+        $post = new Post();
+        $counters = $post->getCounters($id, $userId);
+
+        $this->sendResponse($counters);
     }
 
     /**

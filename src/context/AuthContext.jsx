@@ -45,8 +45,16 @@ export const AuthProvider = ({ children }) => {
     setLoading(false);
   }, []);
 
-  // Функция перевода: t('nav.home') → "Home"
-  const t = useCallback((key) => resolve(translations[language] || translations.en, key), [language]);
+  // Функция перевода: t('nav.home') → "Home", t('key', {var: value}) → "Text with value"
+  const t = useCallback((key, vars) => {
+    let text = resolve(translations[language] || translations.en, key);
+    if (vars) {
+      Object.keys(vars).forEach(varKey => {
+        text = text.replace(new RegExp(`{{${varKey}}}`, 'g'), vars[varKey]);
+      });
+    }
+    return text;
+  }, [language]);
 
   const login = async (username, password) => {
     const response = await authAPI.login({ username, password });

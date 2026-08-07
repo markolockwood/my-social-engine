@@ -40,6 +40,7 @@ try {
     $router->post('/posts/{id}/like', 'PostController', 'like');
     $router->post('/posts/{id}/unlike', 'PostController', 'unlike');
     $router->get('/posts/{id}/replies', 'PostController', 'replies');
+    $router->get('/posts/{id}/counters', 'PostController', 'counters');
     $router->post('/posts/{id}/view', 'PostController', 'view');
     $router->get('/posts/{id}/comments', 'PostController', 'getComments');
     $router->post('/posts/{id}/comments', 'PostController', 'addComment');

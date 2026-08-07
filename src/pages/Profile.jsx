@@ -112,9 +112,10 @@ const Profile = () => {
         usersAPI.getUserPosts(username),
       ]);
       setProfileUser(userRes.data.user);
-      setPosts(postsRes.data.posts);
+      setPosts(postsRes.data.posts || []);
       setReplies([]);
-    } catch {
+    } catch (err) {
+      console.error('Profile load error:', err);
       setError(t('profile.not_found'));
     } finally {
       setLoading(false);

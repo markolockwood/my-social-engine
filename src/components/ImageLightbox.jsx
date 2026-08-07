@@ -31,6 +31,14 @@ const ImageLightbox = ({ images, initialIndex, post, onClose }) => {
       }
     };
     fetchPostData();
+
+    // Блокируем скролл body когда лайтбокс открыт
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      // Восстанавливаем скролл при закрытии
+      document.body.style.overflow = '';
+    };
   }, [post.id]);
 
   useEffect(() => {

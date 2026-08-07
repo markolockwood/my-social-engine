@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { postsAPI } from '../api/api';
 import { useAuth } from '../context/AuthContext';
+import { usePostsContext } from '../context/PostsContext';
 import Sidebar from '../components/Sidebar';
 import MobileNav from '../components/MobileNav';
 import Post from '../components/Post';
@@ -9,6 +10,7 @@ import QuotedPost from '../components/QuotedPost';
 import PostMedia from '../components/PostMedia';
 import ComposeReplyModal from '../components/ComposeReplyModal';
 import ComposeWidget from '../components/ComposeWidget';
+import RepliesSortDropdown from '../components/RepliesSortDropdown';
 import '../styles/PostPage.css';
 
 /**
@@ -24,36 +26,63 @@ const PostPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user, t } = useAuth();
+  const { initPost, getPostState, toggleLike, incrementComments, incrementViews, updatePost } = usePostsContext();
 
   const [post,          setPost]          = useState(null);
   const [quotedPost,    setQuotedPost]    = useState(null); // Родительский пост для быстрых ответов
   const [replies,       setReplies]       = useState([]);
+  const [newRepliesCount, setNewRepliesCount] = useState(0);
   const [loading,       setLoading]       = useState(true);
+  const [loadingMoreReplies, setLoadingMoreReplies] = useState(false);
+  const [hasMoreReplies, setHasMoreReplies] = useState(true);
   const [error,         setError]         = useState('');
   const [replyModalOpen, setReplyModalOpen] = useState(false);
-  const [sortBy,        setSortBy]        = useState('relevant');
-  const [isLiked,       setIsLiked]       = useState(false);
-  const [likesCount,    setLikesCount]    = useState(0);
-  const [commentsCount, setCommentsCount] = useState(0);
+  const [sortBy,        setSortBy]        = useState('recent'); // По умолчанию последние
   const [actionLoading, setActionLoading] = useState(false);
+  const repliesOffsetRef = useRef(0);
+  const lastReplyRef = useRef(null);
+  const latestReplyIdRef = useRef(null); // ID последнего загруженного комментария
 
   useEffect(() => {
     setLoading(true);
     setError('');
+    repliesOffsetRef.current = 0;
+    setHasMoreReplies(true);
     const load = async () => {
       try {
         const [postRes, repliesRes] = await Promise.all([
           postsAPI.getById(id),
-          postsAPI.getReplies(id),
+          postsAPI.getReplies(id, 15, 0), // Первые 15 комментариев
         ]);
         const p = postRes.data.post;
         setPost(p);
-        setIsLiked(p.is_liked || false);
-        setLikesCount(parseInt(p.likes_count) || 0);
-        setCommentsCount(parseInt(p.comments_count) || 0);
-        setReplies(repliesRes.data.posts);
 
-        postsAPI.incrementView(id).catch(() => {}); // Увеличиваем счётчик просмотров (не критично при ошибке)
+        // Инициализируем состояние поста в глобальном контексте
+        initPost(p.id, {
+          isLiked: p.is_liked,
+          likesCount: p.likes_count,
+          commentsCount: p.comments_count,
+          viewsCount: p.views_count
+        });
+
+        const fetchedReplies = repliesRes.data.posts || [];
+        setReplies(sortReplies(fetchedReplies, 'recent')); // Применяем дефолтную сортировку
+        repliesOffsetRef.current = fetchedReplies.length;
+
+        // Запоминаем ID последнего комментария для отслеживания новых
+        if (fetchedReplies.length > 0) {
+          latestReplyIdRef.current = Math.max(...fetchedReplies.map(r => parseInt(r.id)));
+        }
+
+        // Если вернулось меньше 15, значит это все комментарии
+        if (fetchedReplies.length < 15) {
+          setHasMoreReplies(false);
+        }
+
+        // Увеличиваем счётчик просмотров
+        postsAPI.incrementView(id)
+          .then(() => incrementViews(p.id, 1))
+          .catch(() => {});
 
         // Загружаем родительский пост только для быстрых ответов (is_quick_reply = true)
         // Это будет quoted post внутри твита
@@ -72,38 +101,185 @@ const PostPage = () => {
       }
     };
     load();
-  }, [id]);
+  }, [id, initPost, incrementViews, t]);
 
-  useEffect(() => {
-    if (!id) return;
-    const poll = async () => {
-      try {
-        const res = await postsAPI.getReplies(id);
-        const fresh = res.data.posts || [];
-        setReplies(prev => {
-          const existingIds = new Set(prev.map(r => r.id));
-          const added = fresh.filter(r => !existingIds.has(r.id));
-          return added.length > 0 ? [...prev, ...added] : prev;
+  // Функция для загрузки дополнительных комментариев
+  const loadMoreReplies = async () => {
+    if (loadingMoreReplies || !hasMoreReplies) return;
+
+    setLoadingMoreReplies(true);
+    try {
+      const res = await postsAPI.getReplies(id, 10, repliesOffsetRef.current);
+      const fetchedReplies = res.data.posts || [];
+
+      if (fetchedReplies.length < 10) {
+        setHasMoreReplies(false);
+      }
+
+      setReplies(prev => [...prev, ...sortReplies(fetchedReplies, sortBy)]);
+      repliesOffsetRef.current += fetchedReplies.length;
+    } catch (err) {
+      console.error('Failed to load more replies', err);
+    } finally {
+      setLoadingMoreReplies(false);
+    }
+  };
+
+  // Функция сортировки комментариев
+  const sortReplies = (repliesToSort, sortType) => {
+    const sorted = [...repliesToSort];
+
+    switch (sortType) {
+      case 'recent':
+        // Сортировка по времени (новые сверху)
+        return sorted.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+      case 'likes':
+        // Сортировка по лайкам (больше сверху)
+        return sorted.sort((a, b) => (parseInt(b.likes_count) || 0) - (parseInt(a.likes_count) || 0));
+
+      case 'relevant':
+        // Сортировка по релевантности (лайки + время)
+        return sorted.sort((a, b) => {
+          const scoreA = (parseInt(a.likes_count) || 0) * 2 + (new Date(a.created_at).getTime() / 1000000);
+          const scoreB = (parseInt(b.likes_count) || 0) * 2 + (new Date(b.created_at).getTime() / 1000000);
+          return scoreB - scoreA;
         });
-      } catch {}
+
+      default:
+        return sorted;
+    }
+  };
+
+  // Обработчик изменения сортировки
+  const handleSortChange = (newSort) => {
+    setSortBy(newSort);
+    setReplies(prev => sortReplies(prev, newSort));
+  };
+
+  // Intersection Observer для автоподгрузки комментариев
+  useEffect(() => {
+    if (loading || loadingMoreReplies || !hasMoreReplies || replies.length === 0) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          loadMoreReplies();
+        }
+      },
+      { threshold: 0.1, rootMargin: '100px' }
+    );
+
+    if (lastReplyRef.current) {
+      observer.observe(lastReplyRef.current);
+    }
+
+    return () => {
+      if (lastReplyRef.current) {
+        observer.unobserve(lastReplyRef.current);
+      }
     };
-    const interval = setInterval(poll, 20000);
+  }, [loading, loadingMoreReplies, hasMoreReplies, replies.length]);
+
+  // Убираем polling новых комментариев, так как теперь используем пагинацию
+  // useEffect(() => {
+  //   if (!id) return;
+  //   const poll = async () => { ... };
+  //   const interval = setInterval(poll, 20000);
+  //   return () => clearInterval(interval);
+  // }, [id]);
+
+  // Polling новых комментариев каждые 20 секунд
+  useEffect(() => {
+    if (!id || loading || !latestReplyIdRef.current) return;
+
+    const pollNewReplies = async () => {
+      try {
+        // Загружаем последние 15 комментариев
+        const res = await postsAPI.getReplies(id, 15, 0);
+        const freshReplies = res.data.posts || [];
+
+        if (freshReplies.length === 0) return;
+
+        // Находим новые комментарии (с ID больше последнего известного)
+        const newReplies = freshReplies.filter(r => parseInt(r.id) > latestReplyIdRef.current);
+
+        if (newReplies.length > 0) {
+          setNewRepliesCount(newReplies.length);
+        }
+      } catch (err) {
+        console.error('Failed to poll new replies', err);
+      }
+    };
+
+    const interval = setInterval(pollNewReplies, 20000); // 20 секунд
     return () => clearInterval(interval);
-  }, [id]);
+  }, [id, loading]);
+
+  // Показать новые комментарии
+  const showNewReplies = async () => {
+    try {
+      const res = await postsAPI.getReplies(id, 15, 0);
+      const freshReplies = res.data.posts || [];
+
+      // Обновляем список комментариев
+      setReplies(sortReplies(freshReplies, sortBy));
+      repliesOffsetRef.current = freshReplies.length;
+
+      // Обновляем последний ID
+      if (freshReplies.length > 0) {
+        latestReplyIdRef.current = Math.max(...freshReplies.map(r => parseInt(r.id)));
+      }
+
+      setNewRepliesCount(0);
+    } catch (err) {
+      console.error('Failed to load new replies', err);
+    }
+  };
+
+  // Polling счетчиков поста каждые 15 секунд
+  useEffect(() => {
+    if (!id || loading) return;
+
+    const pollCounters = async () => {
+      try {
+        const res = await postsAPI.getCounters(id);
+        const counters = res.data;
+
+        // Обновляем через контекст
+        updatePost(id, {
+          isLiked: counters.is_liked || false,
+          likesCount: parseInt(counters.likes_count) || 0,
+          commentsCount: parseInt(counters.comments_count) || 0,
+          viewsCount: parseInt(counters.views_count) || 0
+        });
+      } catch (err) {
+        console.error('Failed to poll counters', err);
+      }
+    };
+
+    const interval = setInterval(pollCounters, 15000); // 15 секунд
+    return () => clearInterval(interval);
+  }, [id, loading, updatePost]);
 
   const handleLike = async () => {
     if (!user || actionLoading) return;
     setActionLoading(true);
+
+    // Оптимистичное обновление UI
+    toggleLike(id);
+
     try {
-      if (isLiked) {
+      const postState = getPostState(id);
+      if (postState?.isLiked) {
         await postsAPI.unlike(id);
-        setIsLiked(false);
-        setLikesCount((n) => n - 1);
       } else {
         await postsAPI.like(id);
-        setIsLiked(true);
-        setLikesCount((n) => n + 1);
       }
+    } catch (err) {
+      console.error('like error', err);
+      // Откатываем изменение при ошибке
+      toggleLike(id);
     } finally {
       setActionLoading(false);
     }
@@ -111,7 +287,8 @@ const PostPage = () => {
 
   const handleReplyDeleted = (replyId) => {
     setReplies((prev) => prev.filter((r) => r.id !== replyId));
-    setCommentsCount((n) => Math.max(0, n - 1));
+    repliesOffsetRef.current = Math.max(0, repliesOffsetRef.current - 1);
+    incrementComments(id, -1);
   };
 
   const formatFullDate = (timestamp) => {
@@ -152,6 +329,16 @@ const PostPage = () => {
     );
   }
 
+  // Получаем актуальное состояние из контекста
+  const postState = getPostState(id) || {
+    isLiked: post?.is_liked || false,
+    likesCount: parseInt(post?.likes_count) || 0,
+    commentsCount: parseInt(post?.comments_count) || 0,
+    viewsCount: parseInt(post?.views_count) || 0
+  };
+
+  const { isLiked, likesCount, commentsCount, viewsCount } = postState;
+
   return (
     <div className="layout">
       <Sidebar />
@@ -189,7 +376,7 @@ const PostPage = () => {
           <div className="pp-detail-meta">
             <span>{formatFullDate(post.created_at)}</span>
             <span className="pp-detail-dot">·</span>
-            <span><b>{formatNumber(post.views_count)}</b> Views</span>
+            <span><b>{formatNumber(viewsCount)}</b> Views</span>
           </div>
 
           <div className="pp-detail-actions">
@@ -215,32 +402,53 @@ const PostPage = () => {
           </div>
 
           <div className="pp-detail-footer">
-            <div>
-              <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="pp-sort-select">
-                <option value="relevant">Relevant</option>
-                <option value="recent">Recent</option>
-                <option value="likes">Likes</option>
-              </select>
-            </div>
-            <span className="pp-detail-quotes-link">View quotes →</span>
+            {replies.length > 0 && (
+              <RepliesSortDropdown sortBy={sortBy} onSortChange={handleSortChange} />
+            )}
+            {post.quick_replies_count > 0 && (
+              <span className="pp-detail-quotes-link">View quotes →</span>
+            )}
           </div>
         </div>
 
         <ComposeWidget
           parentPost={post}
           onSuccess={(reply) => {
-            setReplies(prev => [...prev, reply]);
-            setCommentsCount(n => n + 1);
+            setReplies(prev => [reply, ...prev]);
+            repliesOffsetRef.current += 1;
+            latestReplyIdRef.current = Math.max(latestReplyIdRef.current || 0, parseInt(reply.id));
+            incrementComments(id, 1);
           }}
         />
+
+        {newRepliesCount > 0 && (
+          <div className="pp-new-replies-banner" onClick={showNewReplies}>
+            {t('post_page.show_new_replies', { count: newRepliesCount })}
+          </div>
+        )}
 
         <div className="pp-replies-list">
           {replies.length === 0 ? (
             <div className="pp-no-replies">{t('post_page.no_comments')}</div>
           ) : (
-            replies.map((reply) => (
-              <Post key={reply.id} post={reply} onDelete={handleReplyDeleted} />
-            ))
+            replies.map((reply, index) => {
+              const isLastReply = index === replies.length - 1;
+              return (
+                <div key={reply.id} ref={isLastReply ? lastReplyRef : null}>
+                  <Post post={reply} onDelete={handleReplyDeleted} />
+                </div>
+              );
+            })
+          )}
+
+          {loadingMoreReplies && (
+            <div className="loading-container">
+              <div className="loading-spinner">{t('feed.loading')}</div>
+            </div>
+          )}
+
+          {!loadingMoreReplies && !hasMoreReplies && replies.length > 0 && (
+            <div className="pp-no-more-replies">{t('post_page.no_more_replies') || 'Больше комментариев нет'}</div>
           )}
         </div>
       </main>
@@ -256,8 +464,9 @@ const PostPage = () => {
           post={post}
           onClose={() => setReplyModalOpen(false)}
           onSuccess={(newReply) => {
-            setReplies(prev => [...prev, newReply]);
-            setCommentsCount(n => n + 1);
+            setReplies(prev => [newReply, ...prev]);
+            repliesOffsetRef.current += 1;
+            incrementComments(id, 1);
             setReplyModalOpen(false);
           }}
         />

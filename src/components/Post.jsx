@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { postsAPI } from '../api/api';
 import { useAuth } from '../context/AuthContext';
+import { usePostsContext } from '../context/PostsContext';
 import ComposeReplyModal from './ComposeReplyModal';
 import QuotedPost from './QuotedPost';
 import PostMedia from './PostMedia';
@@ -23,29 +24,55 @@ import '../styles/Post.css';
 const Post = ({ post, onDelete, onReplyCreated, quotedPost }) => {
   const navigate = useNavigate();
   const { user, t } = useAuth();
+  const { initPost, getPostState, toggleLike, incrementComments, removePost, timeUpdateTrigger } = usePostsContext();
 
-  const [isLiked,      setIsLiked]      = useState(post.is_liked      || false);
-  const [likesCount,   setLikesCount]   = useState(parseInt(post.likes_count)    || 0);
-  const [commentsCount,setCommentsCount]= useState(parseInt(post.comments_count) || 0);
-  const [loading,      setLoading]      = useState(false);
+  const [loading, setLoading] = useState(false);
   const [replyModalOpen, setReplyModalOpen] = useState(false);
+
+  // Инициализация состояния поста в глобальном контексте
+  useEffect(() => {
+    initPost(post.id, {
+      isLiked: post.is_liked,
+      likesCount: post.likes_count,
+      commentsCount: post.comments_count,
+      viewsCount: post.views_count
+    });
+  }, [post.id, post.is_liked, post.likes_count, post.comments_count, post.views_count, initPost]);
+
+  // Получаем актуальное состояние из контекста
+  const postState = getPostState(post.id) || {
+    isLiked: post.is_liked || false,
+    likesCount: parseInt(post.likes_count) || 0,
+    commentsCount: parseInt(post.comments_count) || 0,
+    viewsCount: parseInt(post.views_count) || 0
+  };
+
+  const { isLiked, likesCount, commentsCount, viewsCount } = postState;
+
+  // Принудительное обновление при изменении timeUpdateTrigger для пересчета времени
+  const [, forceUpdate] = useState(0);
+  useEffect(() => {
+    forceUpdate(prev => prev + 1);
+  }, [timeUpdateTrigger]);
 
   const handleLike = async (e) => {
     e.stopPropagation();
     if (!user || loading) return;
     setLoading(true);
+
+    // Оптимистичное обновление UI
+    toggleLike(post.id);
+
     try {
       if (isLiked) {
         await postsAPI.unlike(post.id);
-        setIsLiked(false);
-        setLikesCount((n) => n - 1);
       } else {
         await postsAPI.like(post.id);
-        setIsLiked(true);
-        setLikesCount((n) => n + 1);
       }
     } catch (err) {
       console.error('like error', err);
+      // Откатываем изменение при ошибке
+      toggleLike(post.id);
     } finally {
       setLoading(false);
     }
@@ -56,6 +83,7 @@ const Post = ({ post, onDelete, onReplyCreated, quotedPost }) => {
     if (!window.confirm(t('post.delete_confirm'))) return;
     try {
       await postsAPI.delete(post.id);
+      removePost(post.id);
       if (onDelete) onDelete(post.id);
     } catch {
       alert(t('post.delete_error'));
@@ -78,7 +106,7 @@ const Post = ({ post, onDelete, onReplyCreated, quotedPost }) => {
   };
 
   const handleReplySuccess = (newReply) => {
-    setCommentsCount((n) => n + 1);
+    incrementComments(post.id, 1);
     if (onReplyCreated) onReplyCreated(newReply);
   };
 
@@ -126,7 +154,7 @@ const Post = ({ post, onDelete, onReplyCreated, quotedPost }) => {
           </div>
           <div className="tweet-action tweet-action-views">
             <span>📊</span>
-            <span>{parseInt(post.views_count) || 0}</span>
+            <span>{viewsCount || 0}</span>
           </div>
           <div className="tweet-action tweet-action-bookmark">
             <span>🔖</span>

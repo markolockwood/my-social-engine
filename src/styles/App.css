@@ -16,17 +16,18 @@
 }
 
 [data-theme="dark"] {
-  --bg:           #15202b;
-  --bg-secondary: #192734;
+  --bg:           rgb(0, 0, 0);
+  --bg-secondary: rgba(0, 0, 0, 0.00);
   --bg-hover:     rgba(255, 255, 255, 0.03);
-  --text:         #f7f9f9;
+  --text:         rgb(231, 233, 234);
   --text-muted:   #8b98a5;
-  --border:       #38444d;
+  --border:       rgb(47, 51, 54);
   --input-border: #38444d;
   --search-bg:    #253341;
-  --header-bg:    rgba(21, 32, 43, 0.9);
+  --header-bg:    rgba(0, 0, 0, 0.00);
   --blue-dim:     #1a2b38;
   --blue-faint:   #1a6896;
+  --scroll-bar:   rgb(62, 65, 68) rgb(22, 24, 28)
 }
 
 /* ===== Сброс ===== */
@@ -36,6 +37,7 @@ body {
   font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   background: var(--bg);
   color: var(--text);
+  scrollbar-color: var(--scroll-bar);
   transition: background 0.2s, color 0.2s;
 }
 
@@ -98,7 +100,8 @@ a { text-decoration: none; color: inherit; }
 .panel {
   background: var(--bg-secondary);
   border-radius: 16px;
-  margin-bottom: 16px;
+  border: 1px solid var(--border);
+  padding-bottom: 12px;
   overflow: hidden;
 }
 

@@ -26,7 +26,8 @@ class Post {
                     u.avatar_url,
                     (SELECT username FROM posts parent JOIN users pu ON parent.user_id = pu.id WHERE parent.id = p.parent_id) as parent_username,
                     (SELECT COUNT(*) FROM likes    WHERE post_id = p.id) as likes_count,
-                    (SELECT COUNT(*) FROM posts    WHERE parent_id = p.id) as comments_count";
+                    (SELECT COUNT(*) FROM posts    WHERE parent_id = p.id) as comments_count,
+                    (SELECT COUNT(*) FROM posts    WHERE parent_id = p.id AND is_quick_reply = true) as quick_replies_count";
 
         if ($withUserId) {
             $sql .= ",
@@ -148,13 +149,13 @@ class Post {
 
     /**
      * Получить ленту новостей (главная страница)
-     * Показывает: оригинальные посты (parent_id IS NULL) + быстрые ответы (is_quick_reply = TRUE)
-     * НЕ показывает: thread replies (is_quick_reply = FALSE)
+     * Показывает: оригинальные посты (parent_id IS NULL) + быстрые ответы (is_quick_reply = true)
+     * НЕ показывает: thread replies (is_quick_reply = false)
      */
     public function getFeed($userId = null, $limit = 20, $offset = 0) {
         $sql = $this->baseSelect($userId !== null);
         $sql .= " FROM posts p JOIN users u ON p.user_id = u.id
-                  WHERE (p.parent_id IS NULL OR p.is_quick_reply = TRUE)
+                  WHERE (p.parent_id IS NULL OR p.is_quick_reply = true)
                   ORDER BY p.created_at DESC LIMIT ? OFFSET ?";
 
         $params = $userId !== null ? [$userId, $limit, $offset] : [$limit, $offset];
@@ -170,6 +171,7 @@ class Post {
         $sql = $this->baseSelect($currentUserId !== null);
         $sql .= " FROM posts p JOIN users u ON p.user_id = u.id
                   WHERE p.user_id = ?
+                  AND (p.parent_id IS NULL OR p.is_quick_reply = true)
                   ORDER BY p.created_at DESC
                   LIMIT ? OFFSET ?";
 
@@ -238,18 +240,52 @@ class Post {
     }
 
     /**
+     * Получить только счетчики поста (легкий запрос для polling)
+     * @param int $postId ID поста
+     * @param int|null $userId ID пользователя (для is_liked)
+     * @return array Счетчики поста
+     */
+    public function getCounters($postId, $userId = null) {
+        $sql = "SELECT
+                    p.id,
+                    p.views_count,
+                    (SELECT COUNT(*) FROM likes WHERE post_id = p.id) as likes_count,
+                    (SELECT COUNT(*) FROM posts WHERE parent_id = p.id) as comments_count,
+                    (SELECT COUNT(*) FROM posts WHERE parent_id = p.id AND is_quick_reply = true) as quick_replies_count";
+
+        if ($userId !== null) {
+            $sql .= ",
+                    (SELECT COUNT(*) > 0 FROM likes WHERE post_id = p.id AND user_id = ?) as is_liked";
+        }
+
+        $sql .= " FROM posts p WHERE p.id = ?";
+
+        $params = $userId !== null ? [$userId, $postId] : [$postId];
+        $result = $this->db->query($sql, $params)->fetch();
+
+        if (!$result) {
+            throw new Exception("Post not found");
+        }
+
+        return $result;
+    }
+
+    /**
      * Получить все ответы на конкретный пост (для детальной страницы)
      * @param int $postId - ID поста
      * @param int|null $userId - ID текущего пользователя
+     * @param int $limit - Количество ответов
+     * @param int $offset - Смещение
      * @return array Массив ответов
      */
-    public function getReplies($postId, $userId = null) {
+    public function getReplies($postId, $userId = null, $limit = 50, $offset = 0) {
         $sql = $this->baseSelect($userId !== null);
         $sql .= " FROM posts p JOIN users u ON p.user_id = u.id
                   WHERE p.parent_id = ?
-                  ORDER BY p.created_at ASC";
+                  ORDER BY p.created_at ASC
+                  LIMIT ? OFFSET ?";
 
-        $params = $userId !== null ? [$userId, $postId] : [$postId];
+        $params = $userId !== null ? [$userId, $postId, $limit, $offset] : [$postId, $limit, $offset];
         $posts = $this->db->query($sql, $params)->fetchAll();
         return $this->attachMedia($posts);
     }
