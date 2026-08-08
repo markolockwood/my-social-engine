@@ -22,11 +22,11 @@ Ready-to-use Twitter-style social network script built with React, PHP 8.1 and P
 - ✅ Attach GIFs with automatic MP4 conversion
 - ✅ Attach videos with HLS conversion (360p/720p/1080p)
 - ✅ Custom video player with quality selection and volume persistence
-- ✅ Likes and retweets
+- ✅ Likes
 - ✅ Comments (replies and nested replies)
 - ✅ Quote posts
 - ✅ Quick reply without leaving feed
-- ✅ View counter
+- ✅ View counter with session-based deduplication (feed and post-detail views count as one event, via Redis)
 - ✅ Dynamic feed updates
 - ✅ Media lightbox with navigation
 
@@ -35,12 +35,13 @@ Ready-to-use Twitter-style social network script built with React, PHP 8.1 and P
 - ✅ Avatar upload
 - ✅ User posts list
 - ✅ Edit profile
+- ✅ Follow/unfollow users, followers/following lists
 
 ### Media Processing
 - ✅ Automatic thumbnail generation for images
 - ✅ GIF to MP4 conversion via FFmpeg (~96% size savings)
 - ✅ Video HLS transcoding in multiple qualities (360p/720p/1080p)
-- ✅ Automatic temp file cleanup after 48 hours
+- ✅ Automatic temp file cleanup after 6 hours
 - ✅ Quality selection during video playback
 - ✅ Volume persistence in database
 
@@ -64,6 +65,7 @@ Ready-to-use Twitter-style social network script built with React, PHP 8.1 and P
 ### Backend
 - **PHP 8.1** — server-side logic
 - **PostgreSQL** — relational database
+- **Redis** — view deduplication and other ephemeral data (future: presence/typing indicators for chat)
 - **JWT** — authentication
 - **FFmpeg** — video/GIF processing
 
@@ -77,6 +79,7 @@ Ready-to-use Twitter-style social network script built with React, PHP 8.1 and P
 - Node.js 16+ and npm
 - PHP 8.1+
 - PostgreSQL 12+
+- Redis 6+
 - Nginx
 - FFmpeg (for GIF and video processing)
 - Linux OS (tested on WSL Ubuntu)
@@ -87,6 +90,7 @@ extension=pdo_pgsql
 extension=pgsql
 extension=gd
 extension=fileinfo
+extension=redis
 ```
 
 Enable functions in php.ini:
@@ -96,6 +100,8 @@ disable_functions =
 ```
 
 ## Installation
+
+> **Important:** the instructions below assume a standard Linux server layout (Ubuntu/Debian with Nginx and PHP installed via apt, running as the `www-data` user). If your server is managed through a control panel (aaPanel/BT-Panel, cPanel, Plesk, ISPmanager, etc.), paths and service names will differ — at minimum: where domain Nginx configs live, the PHP-FPM systemd unit name, the `php.ini` path, the web server's system user, and how PHP extensions are installed (via pecl instead of apt if the panel compiled PHP from source). Check your panel's documentation for the equivalent paths.
 
 ### 1. Clone repository and install dependencies
 
@@ -125,14 +131,36 @@ Then run migrations:
 \i database/migrations/004_posts_parent_id.sql
 \i database/migrations/005_posts_quick_reply.sql
 \i database/migrations/006_add_views_count.sql
-\i database/migrations/007_add_post_media.sql
+\i database/migrations/007_unify_post_media.sql
 \i database/migrations/008_add_media_thumbnails.sql
 \i database/migrations/009_temp_uploads.sql
 \i database/migrations/010_add_video_volume.sql
 \i database/migrations/011_add_tracking_id_to_temp_uploads.sql
 ```
 
-### 3. Configuration
+### 3. Install and configure Redis
+
+Redis is used to deduplicate post views (and in the future for chat presence/typing indicators). Install the server and PHP extension:
+
+```bash
+sudo apt install redis-server
+sudo systemctl enable redis-server
+sudo systemctl start redis-server
+
+sudo apt install php8.1-redis
+sudo systemctl restart php8.1-fpm
+```
+
+Verify it works:
+
+```bash
+redis-cli ping        # should reply PONG
+php -m | grep redis   # should print "redis"
+```
+
+If PHP was not installed through your system's package manager (common with control panels like aaPanel), `php8.1-redis` via apt won't install — use `pecl install redis` for that specific PHP build and manually add `extension=redis.so` to `php.ini`.
+
+### 4. Application Configuration
 
 Edit `config/config.php` file:
 
@@ -157,13 +185,13 @@ return [
 ];
 ```
 
-### 4. Web Server Setup (Nginx)
+### 5. Web Server Setup (Nginx)
 
-Project runs through Nginx on Linux (WSL). Create configuration file for your domain.
+Create a configuration file for your domain. On a standard Ubuntu/Debian server, domain configs live in `/etc/nginx/sites-available/` with a symlink in `/etc/nginx/sites-enabled/`; on control panels (aaPanel, cPanel, etc.) they live wherever the panel keeps them and are usually created and enabled through the panel's UI rather than by hand.
 
 **Example configuration:** see [`nginx.conf`](nginx.conf) file in the project root
 
-After creating configuration:
+After creating configuration (standard server):
 
 ```bash
 # Create symbolic link
@@ -176,28 +204,31 @@ sudo nginx -t
 sudo systemctl restart nginx
 ```
 
-Ensure PHP-FPM is running:
+Ensure PHP-FPM is running (the service name depends on how PHP was installed — typically `php8.1-fpm` on a standard server, but it can differ on control panels, e.g. `php-fpm-81`):
 
 ```bash
 sudo systemctl status php8.1-fpm
 sudo systemctl start php8.1-fpm  # if not running
 ```
 
-### 5. Set File Permissions
+### 6. Set File Permissions
 
 ```bash
 # Create uploads directories
 mkdir -p uploads/avatars uploads/posts uploads/posts/thumbs uploads/gifs uploads/videos
-
-# Set permissions (for production use www-data:www-data with 755)
-chmod -R 777 uploads/
-
-# For production:
-# sudo chown -R www-data:www-data uploads/
-# sudo chmod -R 755 uploads/
 ```
 
-### 6. Setup Cleanup Cron Task
+Permissions need to match the user PHP-FPM runs as — typically `www-data` on a standard server, but control panels often use a dedicated system user instead (e.g. `www` in aaPanel). You can find it in the PHP-FPM pool config (the `user` directive in `php-fpm.conf`/`www.conf`) or from the ownership of the rest of the project's files.
+
+```bash
+# Example for a standard server (Ubuntu/Debian):
+sudo chown -R www-data:www-data uploads/
+sudo chmod -R 755 uploads/
+```
+
+`755` is enough as long as PHP-FPM runs as the same user that owns the folder. Avoid leaving `777` permanently — that grants write access to any process on the server, not just the web server.
+
+### 7. Setup Cleanup Cron Task
 
 Add to crontab to clean old temporary files:
 
@@ -205,11 +236,13 @@ Add to crontab to clean old temporary files:
 # Edit crontab
 crontab -e
 
-# Add line (runs every 30 minutes):
-*/30 * * * * php /www/wwwroot/mytwit.com/cleanup_temp_uploads.php
+# Add line (runs every 30 minutes, use your actual project path):
+*/30 * * * * php /path/to/project/cleanup_temp_uploads.php
 ```
 
-### 7. Build and Run
+Control panels usually have their own cron UI (e.g. "Cron Jobs" in aaPanel) — using that can be more convenient than `crontab -e` since the panel fills in the correct PHP binary path for you.
+
+### 8. Build and Run
 
 ```bash
 npm run build
@@ -268,7 +301,6 @@ your-project/
 
 ## Next Steps (TODO)
 
-- [ ] Follow/unfollow system
 - [ ] Notifications
 - [ ] Direct messages
 - [ ] User and post search

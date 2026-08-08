@@ -56,6 +56,10 @@ try {
     $router->get('/users/{username}', 'UserController', 'profile');
     $router->get('/users/{username}/posts', 'UserController', 'posts');
     $router->get('/users/{username}/replies', 'UserController', 'replies');
+    $router->post('/users/{username}/follow', 'UserController', 'follow');
+    $router->delete('/users/{username}/follow', 'UserController', 'unfollow');
+    $router->get('/users/{username}/followers', 'UserController', 'followers');
+    $router->get('/users/{username}/following', 'UserController', 'following');
     $router->patch('/user/theme', 'UserController', 'updateTheme');
     $router->patch('/user/language', 'UserController', 'updateLanguage');
     $router->patch('/user/profile', 'UserController', 'updateProfile');

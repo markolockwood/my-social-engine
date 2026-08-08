@@ -9,6 +9,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Profile from './pages/Profile';
 import PostPage from './pages/PostPage';
+import FollowList from './pages/FollowList';
 import './styles/App.css';
 
 const PrivateRoute = ({ children }) => {
@@ -83,6 +84,14 @@ function App() {
                 element={
                   <PrivateRoute>
                     <PostPage />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/profile/:username/:tab"
+                element={
+                  <PrivateRoute>
+                    <FollowList />
                   </PrivateRoute>
                 }
               />

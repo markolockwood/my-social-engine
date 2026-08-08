@@ -95,6 +95,8 @@ const Profile = () => {
   const [loading,  setLoading]  = useState(true);
   const [error,    setError]    = useState('');
   const [editOpen, setEditOpen] = useState(false);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followLoading, setFollowLoading] = useState(false);
   const { user: authUser, updateUser, t } = useAuth();
 
   const isOwn = authUser && profileUser && authUser.username === profileUser.username;
@@ -112,6 +114,7 @@ const Profile = () => {
         usersAPI.getUserPosts(username),
       ]);
       setProfileUser(userRes.data.user);
+      setIsFollowing(userRes.data.user.is_following || false);
       setPosts(postsRes.data.posts || []);
       setReplies([]);
     } catch (err) {
@@ -139,6 +142,35 @@ const Profile = () => {
   const handleProfileSaved = (updatedUser) => {
     setProfileUser((prev) => ({ ...prev, ...updatedUser }));
     if (isOwn) updateUser(updatedUser);
+  };
+
+  const handleFollowToggle = async () => {
+    if (followLoading || !profileUser) return;
+
+    try {
+      setFollowLoading(true);
+
+      if (isFollowing) {
+        await usersAPI.unfollow(profileUser.username);
+        setIsFollowing(false);
+        setProfileUser(prev => ({
+          ...prev,
+          followers_count: Math.max(0, parseInt(prev.followers_count) - 1)
+        }));
+      } else {
+        await usersAPI.follow(profileUser.username);
+        setIsFollowing(true);
+        setProfileUser(prev => ({
+          ...prev,
+          followers_count: parseInt(prev.followers_count) + 1
+        }));
+      }
+    } catch (err) {
+      console.error('Follow toggle error:', err);
+      alert(t('profile.follow_error') || 'Failed to update follow status');
+    } finally {
+      setFollowLoading(false);
+    }
   };
 
   const formatJoined    = (ts)   => new Date(ts).toLocaleDateString(t('locale'), { year: 'numeric', month: 'long' });
@@ -169,7 +201,7 @@ const Profile = () => {
       <Sidebar />
 
       <main className="main">
-        <div className="main-header">
+        <div className="main-header profile-main-header">
           <h2>{profileUser.display_name}</h2>
           <div style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: 400 }}>
             {profileUser.posts_count} {t('profile.posts_count')}
@@ -185,9 +217,17 @@ const Profile = () => {
             className="profile-avatar"
           />
 
-          {isOwn && (
+          {isOwn ? (
             <button className="profile-edit-btn" onClick={() => setEditOpen(true)}>
               {t('edit_profile.button')}
+            </button>
+          ) : (
+            <button
+              className={`profile-follow-btn ${isFollowing ? 'following' : ''}`}
+              onClick={handleFollowToggle}
+              disabled={followLoading}
+            >
+              {followLoading ? '...' : isFollowing ? t('profile.unfollow') : t('profile.follow')}
             </button>
           )}
 
@@ -203,8 +243,12 @@ const Profile = () => {
           </div>
 
           <div className="profile-stats">
-            <span><b>{profileUser.following_count}</b> <span>{t('profile.following')}</span></span>
-            <span><b>{profileUser.followers_count}</b> <span>{t('profile.followers')}</span></span>
+            <Link to={`/profile/${profileUser.username}/following`} className="profile-stat-link">
+              <b>{profileUser.following_count}</b> <span>{t('profile.following')}</span>
+            </Link>
+            <Link to={`/profile/${profileUser.username}/followers`} className="profile-stat-link">
+              <b>{profileUser.followers_count}</b> <span>{t('profile.followers')}</span>
+            </Link>
           </div>
         </div>
 

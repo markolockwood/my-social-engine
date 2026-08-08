@@ -75,7 +75,10 @@
     "empty_replies": "No replies yet",
     "reply_to": "Replying to",
     "you_retweeted": "You retweeted",
-    "retweeted": "Retweeted"
+    "retweeted": "Retweeted",
+    "follow": "Follow",
+    "unfollow": "Unfollow",
+    "follow_error": "Failed to update follow status"
   },
   "post_page": {
     "loading": "Loading...",
@@ -123,5 +126,14 @@
     "recent": "Recent",
     "relevant": "Relevant",
     "likes": "Likes"
+  },
+  "follow_list": {
+    "loading": "Loading...",
+    "loading_more": "Loading more...",
+    "error": "Error loading users",
+    "followers": "Followers",
+    "following": "Following",
+    "no_followers": "No followers yet",
+    "no_following": "Not following anyone yet"
   }
 }

@@ -97,6 +97,12 @@ export const usersAPI = {
     api.get(`/users/${username}/posts?limit=${limit}&offset=${offset}`),
   getUserReplies: (username, limit = 20, offset = 0) =>
     api.get(`/users/${username}/replies?limit=${limit}&offset=${offset}`),
+  follow:         (username)                         => api.post(`/users/${username}/follow`),
+  unfollow:       (username)                         => api.delete(`/users/${username}/follow`),
+  getFollowers:   (username, limit = 20, offset = 0) =>
+    api.get(`/users/${username}/followers?limit=${limit}&offset=${offset}`),
+  getFollowing:   (username, limit = 20, offset = 0) =>
+    api.get(`/users/${username}/following?limit=${limit}&offset=${offset}`),
 };
 
 export default api;

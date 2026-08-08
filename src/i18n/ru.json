@@ -75,7 +75,10 @@
     "empty_replies": "Нет ответов",
     "reply_to": "Ответ для",
     "you_retweeted": "Вы ретвитнули",
-    "retweeted": "Ретвитнул"
+    "retweeted": "Ретвитнул",
+    "follow": "Подписаться",
+    "unfollow": "Отписаться",
+    "follow_error": "Ошибка при изменении подписки"
   },
   "post_page": {
     "loading": "Загрузка...",
@@ -123,5 +126,14 @@
     "recent": "Последние",
     "relevant": "Релевантные",
     "likes": "По лайкам"
+  },
+  "follow_list": {
+    "loading": "Загрузка...",
+    "loading_more": "Загружаем ещё...",
+    "error": "Ошибка при загрузке пользователей",
+    "followers": "Читатели",
+    "following": "Читаемые",
+    "no_followers": "Пока нет читателей",
+    "no_following": "Пока не читает никого"
   }
 }

@@ -5,6 +5,7 @@
   --bg-hover:     rgba(0, 0, 0, 0.03);
   --text:         #0f1419;
   --text-muted:   #536471;
+  --text-secondary: rgb(215, 219, 220);
   --border:       #eff3f4;
   --input-border: #cfd9de;
   --search-bg:    #eff3f4;
@@ -13,6 +14,8 @@
   --blue-hover:   #1a8cd8;
   --blue-dim:     #e8f5fd;
   --blue-faint:   #8ecdf8;
+  --scroll-bar:   rgb(62, 65, 68) rgb(22, 24, 28);
+  --profile-main-header:  rgba(255, 255, 255, 0.85);
 }
 
 [data-theme="dark"] {
@@ -21,13 +24,15 @@
   --bg-hover:     rgba(255, 255, 255, 0.03);
   --text:         rgb(231, 233, 234);
   --text-muted:   #8b98a5;
+  --text-secondary: rgb(215, 219, 220);
   --border:       rgb(47, 51, 54);
   --input-border: #38444d;
   --search-bg:    #253341;
   --header-bg:    rgba(0, 0, 0, 0.00);
   --blue-dim:     #1a2b38;
   --blue-faint:   #1a6896;
-  --scroll-bar:   rgb(62, 65, 68) rgb(22, 24, 28)
+  --scroll-bar:   rgb(62, 65, 68) rgb(22, 24, 28);
+  --profile-main-header:  rgba(0, 0, 0, 0.65);
 }
 
 /* ===== Сброс ===== */

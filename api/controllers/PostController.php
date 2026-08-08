@@ -2,6 +2,7 @@
 
 require_once __DIR__ . '/../classes/Database.php';
 require_once __DIR__ . '/../classes/Post.php';
+require_once __DIR__ . '/../classes/Redis.php';
 require_once __DIR__ . '/../middleware/AuthMiddleware.php';
 require_once __DIR__ . '/../middleware/RateLimitMiddleware.php';
 
@@ -145,12 +146,16 @@ class PostController {
 
     /**
      * POST /posts/{id}/view — увеличить счётчик просмотров
+     * Просмотр может быть анонимным — тогда дедупликация идёт по IP
      */
     public function view($id) {
-        $post = new Post();
-        $post->incrementViews($id);
+        $authUser = AuthMiddleware::getAuthUser();
+        $viewerKey = $authUser ? "u{$authUser['userId']}" : 'ip' . RateLimitMiddleware::getClientIp();
 
-        $this->sendResponse(['message' => 'View counted']);
+        $post = new Post();
+        $counted = $post->incrementViews($id, $viewerKey);
+
+        $this->sendResponse(['counted' => $counted]);
     }
 
     /**

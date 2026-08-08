@@ -9,6 +9,12 @@
   position: relative;
 }
 
+.profile-main-header {
+  background: var(--profile-main-header)!important;
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+
+}
 .profile-avatar {
   width: 133px;
   height: 133px;
@@ -35,6 +41,47 @@
 }
 
 .profile-edit-btn:hover { background: var(--bg-secondary); }
+
+.profile-follow-btn {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  border: 1px solid var(--input-border);
+  background: var(--text);
+  color: var(--bg);
+  border-radius: 999px;
+  padding: 8px 24px;
+  font-weight: 700;
+  cursor: pointer;
+  font-size: 15px;
+  transition: all 0.2s;
+  min-width: 100px;
+}
+
+.profile-follow-btn:hover {
+  background: var(--text-secondary);
+}
+
+.profile-follow-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.profile-follow-btn.following {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--input-border);
+}
+
+.profile-follow-btn.following:hover {
+  background: rgba(244, 33, 46, 0.1);
+  border-color: rgba(244, 33, 46, 0.4);
+  color: rgb(244, 33, 46);
+}
+
+.profile-follow-btn.following:hover::after {
+  content: attr(data-unfollow-text);
+}
 
 .profile-name {
   font-size: 20px;
@@ -63,8 +110,16 @@
   font-size: 15px;
 }
 
-.profile-stats a   { transition: opacity 0.15s; }
-.profile-stats a:hover { opacity: 0.7; }
+.profile-stat-link {
+  text-decoration: none;
+  color: inherit;
+  transition: opacity 0.15s;
+}
+
+.profile-stat-link:hover {
+  text-decoration: underline;
+}
+
 .profile-stats b   { font-weight: 700; }
 .profile-stats span { color: var(--text-muted); }
 

@@ -26,7 +26,7 @@ const PostPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user, t } = useAuth();
-  const { initPost, getPostState, toggleLike, incrementComments, incrementViews, updatePost } = usePostsContext();
+  const { initPost, getPostState, toggleLike, incrementComments, incrementViews, markPostViewed, updatePost } = usePostsContext();
 
   const [post,          setPost]          = useState(null);
   const [quotedPost,    setQuotedPost]    = useState(null); // Родительский пост для быстрых ответов
@@ -79,10 +79,17 @@ const PostPage = () => {
           setHasMoreReplies(false);
         }
 
-        // Увеличиваем счётчик просмотров
-        postsAPI.incrementView(id)
-          .then(() => incrementViews(p.id, 1))
-          .catch(() => {});
+        // Увеличиваем счётчик просмотров только если сервер реально его засчитал
+        // (повторный просмотр в течение 30 минут не увеличивает счётчик).
+        // markPostViewed защищает от дублирующего запроса, если пост только что
+        // был засчитан через ленту (Post.jsx)
+        if (markPostViewed(p.id)) {
+          postsAPI.incrementView(id)
+            .then((res) => {
+              if (res.data.counted) incrementViews(p.id, 1);
+            })
+            .catch(() => {});
+        }
 
         // Загружаем родительский пост только для быстрых ответов (is_quick_reply = true)
         // Это будет quoted post внутри твита
@@ -101,7 +108,7 @@ const PostPage = () => {
       }
     };
     load();
-  }, [id, initPost, incrementViews, t]);
+  }, [id, initPost, incrementViews, markPostViewed, t]);
 
   // Функция для загрузки дополнительных комментариев
   const loadMoreReplies = async () => {

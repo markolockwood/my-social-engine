@@ -20,5 +20,10 @@ return [
     'ffmpeg' => [
         'binary' => '/usr/bin/ffmpeg',
         'ffprobe' => '/usr/bin/ffprobe'
+    ],
+    'redis' => [
+        'host' => '127.0.0.1',
+        'port' => 6379,
+        'timeout' => 1.0 // секунд на подключение
     ]
 ];

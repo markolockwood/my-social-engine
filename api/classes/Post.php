@@ -1,6 +1,10 @@
 <?php
 
 class Post {
+    // Окно дедупликации просмотров: повторный просмотр от того же viewerKey
+    // в течение этого времени не увеличивает счётчик (аналог "сессии" в Twitter)
+    const VIEW_DEDUP_TTL = 10800; // 3 часа
+
     private $db;
 
     public function __construct() {
@@ -347,9 +351,27 @@ class Post {
 
     /**
      * Увеличить счётчик просмотров поста
-     * Вызывается при открытии детальной страницы
+     * Вызывается при открытии детальной страницы.
+     *
+     * @param int $postId
+     * @param string $viewerKey Идентификатор просматривающего (userId или IP для анонимных)
+     * @return bool true если просмотр засчитан, false если он уже был в текущем окне
      */
-    public function incrementViews($postId) {
+    public function incrementViews($postId, $viewerKey) {
+        $redis = RedisClient::getInstance();
+
+        if ($redis->isAvailable()) {
+            $key = "view:{$postId}:{$viewerKey}";
+            // SET NX EX — атомарная проверка-и-установка одной командой,
+            // без гонки между "прочитать" и "записать"
+            $isFirstView = $redis->getConnection()->set($key, 1, ['NX', 'EX' => self::VIEW_DEDUP_TTL]);
+
+            if (!$isFirstView) {
+                return false; // просмотр уже засчитан в текущем окне
+            }
+        }
+        // Если Redis недоступен — считаем без дедупликации, чтобы не терять просмотры совсем
+
         $this->db->query("UPDATE posts SET views_count = views_count + 1 WHERE id = ?", [$postId]);
         return true;
     }

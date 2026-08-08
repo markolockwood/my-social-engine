@@ -151,4 +151,111 @@ class User {
 
         return true;
     }
+
+    // Подписка на пользователя
+    public function follow($followerId, $followingId) {
+        if ($followerId === $followingId) {
+            throw new Exception("Cannot follow yourself");
+        }
+
+        // Проверяем существование обоих пользователей
+        $stmt = $this->db->query(
+            "SELECT id FROM users WHERE id IN (?, ?)",
+            [$followerId, $followingId]
+        );
+
+        if ($stmt->rowCount() !== 2) {
+            throw new Exception("User not found");
+        }
+
+        // Проверяем, не подписан ли уже
+        $stmt = $this->db->query(
+            "SELECT id FROM follows WHERE follower_id = ? AND following_id = ?",
+            [$followerId, $followingId]
+        );
+
+        if ($stmt->fetch()) {
+            throw new Exception("Already following");
+        }
+
+        // Создаем подписку
+        $this->db->query(
+            "INSERT INTO follows (follower_id, following_id) VALUES (?, ?)",
+            [$followerId, $followingId]
+        );
+
+        return true;
+    }
+
+    // Отписка от пользователя
+    public function unfollow($followerId, $followingId) {
+        $stmt = $this->db->query(
+            "DELETE FROM follows WHERE follower_id = ? AND following_id = ? RETURNING id",
+            [$followerId, $followingId]
+        );
+
+        if (!$stmt->fetch()) {
+            throw new Exception("Not following");
+        }
+
+        return true;
+    }
+
+    // Проверяет, подписан ли follower на following
+    public function isFollowing($followerId, $followingId) {
+        $stmt = $this->db->query(
+            "SELECT id FROM follows WHERE follower_id = ? AND following_id = ?",
+            [$followerId, $followingId]
+        );
+
+        return $stmt->fetch() !== false;
+    }
+
+    // Получает список подписчиков пользователя
+    public function getFollowers($userId, $limit = 20, $offset = 0, $currentUserId = null) {
+        $stmt = $this->db->query(
+            "SELECT u.id, u.username, u.display_name, u.avatar_url, u.bio
+             FROM users u
+             INNER JOIN follows f ON u.id = f.follower_id
+             WHERE f.following_id = ?
+             ORDER BY f.created_at DESC
+             LIMIT ? OFFSET ?",
+            [$userId, $limit, $offset]
+        );
+
+        $users = $stmt->fetchAll();
+
+        // Если есть текущий пользователь, проверяем статус подписки на каждого
+        if ($currentUserId) {
+            foreach ($users as &$user) {
+                $user['is_following'] = $this->isFollowing($currentUserId, $user['id']);
+            }
+        }
+
+        return $users;
+    }
+
+    // Получает список подписок пользователя (на кого подписан)
+    public function getFollowing($userId, $limit = 20, $offset = 0, $currentUserId = null) {
+        $stmt = $this->db->query(
+            "SELECT u.id, u.username, u.display_name, u.avatar_url, u.bio
+             FROM users u
+             INNER JOIN follows f ON u.id = f.following_id
+             WHERE f.follower_id = ?
+             ORDER BY f.created_at DESC
+             LIMIT ? OFFSET ?",
+            [$userId, $limit, $offset]
+        );
+
+        $users = $stmt->fetchAll();
+
+        // Если есть текущий пользователь, проверяем статус подписки на каждого
+        if ($currentUserId) {
+            foreach ($users as &$user) {
+                $user['is_following'] = $this->isFollowing($currentUserId, $user['id']);
+            }
+        }
+
+        return $users;
+    }
 }

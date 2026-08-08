@@ -1,0 +1,124 @@
+.user-card {
+  display: flex;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.15s;
+}
+
+.user-card:hover {
+  background: var(--bg-hover);
+}
+
+.user-card-avatar {
+  flex-shrink: 0;
+}
+
+.user-card-avatar img {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.user-card-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.user-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.user-card-names {
+  flex: 1;
+  min-width: 0;
+  text-decoration: none;
+  color: inherit;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.user-card-name {
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-card-names:hover .user-card-name {
+  text-decoration: underline;
+}
+
+.user-card-username {
+  font-size: 15px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-card-bio {
+  font-size: 15px;
+  color: var(--text);
+  line-height: 1.4;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.user-card-follow-btn {
+  flex-shrink: 0;
+  border: 1px solid var(--input-border);
+  background: var(--text);
+  color: var(--bg);
+  border-radius: 999px;
+  padding: 6px 16px;
+  font-weight: 700;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+  min-width: 80px;
+  height: 32px;
+}
+
+.user-card-follow-btn:hover {
+  background: var(--text-secondary);
+}
+
+.user-card-follow-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.user-card-follow-btn.following {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--input-border);
+}
+
+.user-card-follow-btn.following:hover {
+  background: rgba(244, 33, 46, 0.1);
+  border-color: rgba(244, 33, 46, 0.4);
+  color: rgb(244, 33, 46);
+}
+
+@media (max-width: 640px) {
+  .user-card {
+    padding: 12px;
+  }
+
+  .user-card-follow-btn {
+    min-width: 70px;
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+}

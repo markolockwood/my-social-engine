@@ -1,0 +1,155 @@
+.user-hover-card {
+  position: fixed;
+  width: 300px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  padding: 16px;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.user-hover-card-loading {
+  text-align: center;
+  padding: 20px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.user-hover-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.user-hover-card-avatar {
+  flex-shrink: 0;
+}
+
+.user-hover-card-avatar img {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 4px solid var(--bg);
+}
+
+.user-hover-card-follow-btn {
+  flex-shrink: 0;
+  border: 1px solid var(--input-border);
+  background: var(--text);
+  color: var(--bg);
+  border-radius: 999px;
+  padding: 6px 16px;
+  font-weight: 700;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+  min-width: 80px;
+  height: 32px;
+}
+
+.user-hover-card-follow-btn:hover {
+  background: var(--text-secondary);
+}
+
+.user-hover-card-follow-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.user-hover-card-follow-btn.following {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--input-border);
+}
+
+.user-hover-card-follow-btn.following:hover {
+  background: rgba(244, 33, 46, 0.1);
+  border-color: rgba(244, 33, 46, 0.4);
+  color: rgb(244, 33, 46);
+}
+
+.user-hover-card-info {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  margin-bottom: 12px;
+}
+
+.user-hover-card-name {
+  font-weight: 700;
+  font-size: 20px;
+  color: var(--text);
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-hover-card-info:hover .user-hover-card-name {
+  text-decoration: underline;
+}
+
+.user-hover-card-username {
+  font-size: 15px;
+  color: var(--text-muted);
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-hover-card-bio {
+  font-size: 15px;
+  color: var(--text);
+  line-height: 1.4;
+  margin-bottom: 12px;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.user-hover-card-stats {
+  display: flex;
+  gap: 16px;
+}
+
+.user-hover-card-stat {
+  text-decoration: none;
+  color: inherit;
+  font-size: 14px;
+  transition: opacity 0.15s;
+}
+
+.user-hover-card-stat:hover {
+  text-decoration: underline;
+}
+
+.user-hover-card-stat b {
+  font-weight: 700;
+  color: var(--text);
+}
+
+.user-hover-card-stat span {
+  color: var(--text-muted);
+}
+
+/* Адаптивность - скрываем на мобильных */
+@media (max-width: 768px) {
+  .user-hover-card {
+    display: none;
+  }
+}

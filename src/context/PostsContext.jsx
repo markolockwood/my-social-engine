@@ -14,6 +14,10 @@ export const PostsProvider = ({ children }) => {
   // Хранилище состояний постов: postId -> { isLiked, likesCount, commentsCount, viewsCount }
   const [postsState, setPostsState] = useState({});
 
+  // Посты, для которых запрос на просмотр уже отправлен в текущей SPA-сессии.
+  // Ref, а не state — не должен вызывать перерендер, нужен только для дедупликации запросов
+  const viewedPostsRef = useRef(new Set());
+
   // Принудительное обновление для пересчета времени
   const [timeUpdateTrigger, setTimeUpdateTrigger] = useState(0);
 
@@ -108,6 +112,18 @@ export const PostsProvider = ({ children }) => {
   }, []);
 
   /**
+   * Отмечает пост как просмотренный в текущей сессии.
+   * Возвращает true при первой отметке (запрос на /view нужно отправить),
+   * false если запрос для этого поста уже отправлялся — избегаем повторных
+   * запросов при каждом повторном попадании поста в вьюпорт ленты.
+   */
+  const markPostViewed = useCallback((postId) => {
+    if (viewedPostsRef.current.has(postId)) return false;
+    viewedPostsRef.current.add(postId);
+    return true;
+  }, []);
+
+  /**
    * Получение состояния поста
    */
   const getPostState = useCallback((postId) => {
@@ -133,6 +149,7 @@ export const PostsProvider = ({ children }) => {
     toggleLike,
     incrementComments,
     incrementViews,
+    markPostViewed,
     getPostState,
     removePost
   };

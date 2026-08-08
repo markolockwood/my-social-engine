@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { postsAPI } from '../api/api';
 import { useAuth } from '../context/AuthContext';
@@ -6,6 +6,7 @@ import { usePostsContext } from '../context/PostsContext';
 import ComposeReplyModal from './ComposeReplyModal';
 import QuotedPost from './QuotedPost';
 import PostMedia from './PostMedia';
+import UserLink from './UserLink';
 import '../styles/Post.css';
 
 /**
@@ -24,10 +25,43 @@ import '../styles/Post.css';
 const Post = ({ post, onDelete, onReplyCreated, quotedPost }) => {
   const navigate = useNavigate();
   const { user, t } = useAuth();
-  const { initPost, getPostState, toggleLike, incrementComments, removePost, timeUpdateTrigger } = usePostsContext();
+  const { initPost, getPostState, toggleLike, incrementComments, incrementViews, markPostViewed, removePost, timeUpdateTrigger } = usePostsContext();
 
   const [loading, setLoading] = useState(false);
   const [replyModalOpen, setReplyModalOpen] = useState(false);
+
+  // Засчитываем просмотр поста в ленте: пост должен провисеть в зоне видимости
+  // хотя бы 1 секунду минимум наполовину, иначе быстрый скролл считал бы всё подряд
+  const articleRef = useRef(null);
+  useEffect(() => {
+    const el = articleRef.current;
+    if (!el) return;
+
+    let viewTimer = null;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          viewTimer = setTimeout(() => {
+            if (!markPostViewed(post.id)) return; // уже отправляли в этой сессии
+            postsAPI.incrementView(post.id)
+              .then((res) => {
+                if (res.data.counted) incrementViews(post.id, 1);
+              })
+              .catch(() => {});
+          }, 3000);
+        } else {
+          clearTimeout(viewTimer);
+        }
+      },
+      { threshold: 0.5 }
+    );
+
+    observer.observe(el);
+    return () => {
+      clearTimeout(viewTimer);
+      observer.disconnect();
+    };
+  }, [post.id, markPostViewed, incrementViews]);
 
   // Инициализация состояния поста в глобальном контексте
   useEffect(() => {
@@ -113,7 +147,7 @@ const Post = ({ post, onDelete, onReplyCreated, quotedPost }) => {
   const isOwnPost = user && user.id === post.user_id;
 
   return (
-    <article className="tweet" onClick={() => navigate(`/post/${post.id}`)}>
+    <article ref={articleRef} className="tweet" onClick={() => navigate(`/post/${post.id}`)}>
       <img
         src={post.avatar_url || `https://i.pravatar.cc/150?u=${post.username}`}
         alt="Avatar"
@@ -122,12 +156,13 @@ const Post = ({ post, onDelete, onReplyCreated, quotedPost }) => {
       />
       <div className="tweet-body">
         <div className="tweet-head">
-          <span
+          <UserLink
+            username={post.username}
             className="tweet-name"
-            onClick={(e) => { e.stopPropagation(); navigate(`/profile/${post.username}`); }}
+            onClick={(e) => e.stopPropagation()}
           >
             {post.display_name}
-          </span>
+          </UserLink>
           <span className="tweet-handle">@{post.username}</span>
           <span className="tweet-dot">·</span>
           <span className="tweet-time">{formatTime(post.created_at)}</span>

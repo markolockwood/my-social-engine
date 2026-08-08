@@ -14,8 +14,18 @@ class UserController {
      * GET /users/{username} — профиль пользователя
      */
     public function profile($username) {
+        $authUser = AuthMiddleware::getAuthUser();
+        $currentUserId = $authUser ? $authUser['userId'] : null;
+
         $user = new User();
         $userData = $user->getByUsername($username);
+
+        // Если пользователь авторизован, проверяем статус подписки
+        if ($currentUserId && $currentUserId !== $userData['id']) {
+            $userData['is_following'] = $user->isFollowing($currentUserId, $userData['id']);
+        } else {
+            $userData['is_following'] = false;
+        }
 
         $this->sendResponse(['user' => $userData]);
     }
@@ -198,6 +208,74 @@ class UserController {
         }
 
         $this->sendResponse(['url' => '/uploads/avatars/' . $filename], 201);
+    }
+
+    /**
+     * POST /users/{username}/follow — подписка на пользователя
+     */
+    public function follow($username) {
+        $authUser = AuthMiddleware::requireAuth();
+
+        $user = new User();
+        $targetUser = $user->getByUsername($username);
+
+        $user->follow($authUser['userId'], $targetUser['id']);
+
+        $this->sendResponse([
+            'success' => true,
+            'message' => 'Successfully followed user'
+        ]);
+    }
+
+    /**
+     * DELETE /users/{username}/follow — отписка от пользователя
+     */
+    public function unfollow($username) {
+        $authUser = AuthMiddleware::requireAuth();
+
+        $user = new User();
+        $targetUser = $user->getByUsername($username);
+
+        $user->unfollow($authUser['userId'], $targetUser['id']);
+
+        $this->sendResponse([
+            'success' => true,
+            'message' => 'Successfully unfollowed user'
+        ]);
+    }
+
+    /**
+     * GET /users/{username}/followers — список подписчиков
+     */
+    public function followers($username) {
+        $authUser = AuthMiddleware::getAuthUser();
+        $currentUserId = $authUser ? $authUser['userId'] : null;
+
+        $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 20;
+        $offset = isset($_GET['offset']) ? (int)$_GET['offset'] : 0;
+
+        $user = new User();
+        $targetUser = $user->getByUsername($username);
+        $followers = $user->getFollowers($targetUser['id'], $limit, $offset, $currentUserId);
+
+        $this->sendResponse(['followers' => $followers]);
+    }
+
+    /**
+     * GET /users/{username}/following — список подписок
+     */
+    public function following($username) {
+        $authUser = AuthMiddleware::getAuthUser();
+        $currentUserId = $authUser ? $authUser['userId'] : null;
+
+        $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 20;
+        $offset = isset($_GET['offset']) ? (int)$_GET['offset'] : 0;
+
+        $user = new User();
+        $targetUser = $user->getByUsername($username);
+        $following = $user->getFollowing($targetUser['id'], $limit, $offset, $currentUserId);
+
+        $this->sendResponse(['following' => $following]);
     }
 
     /**

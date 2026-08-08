@@ -52,7 +52,7 @@ class RateLimitMiddleware {
     /**
      * Получить IP адрес клиента
      */
-    private static function getClientIp() {
+    public static function getClientIp() {
         // Проверяем заголовки прокси
         if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
             $ip = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR'])[0];
