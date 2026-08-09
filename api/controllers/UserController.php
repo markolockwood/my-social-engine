@@ -69,6 +69,131 @@ class UserController {
     }
 
     /**
+     * GET /user/account-info — получение информации об аккаунте
+     */
+    public function getAccountInfo() {
+        $authUser = AuthMiddleware::requireAuth();
+
+        $user = new User();
+        $userData = $user->getById($authUser['userId']);
+
+        // Добавляем дополнительную информацию для раздела Account Information
+        $accountInfo = [
+            'id' => $userData['id'],
+            'username' => $userData['username'],
+            'email' => $userData['email'],
+            'display_name' => $userData['display_name'],
+            'bio' => $userData['bio'],
+            'location' => $userData['location'],
+            'birth_date' => $userData['birth_date'],
+            'avatar_url' => $userData['avatar_url'],
+            'created_at' => $userData['created_at'],
+            'verified' => $userData['verified'] ?? false,
+            'registration_ip' => $userData['registration_ip'] ?? null,
+            'registration_country' => $this->getCountryByIP($userData['registration_ip'] ?? null),
+            'country' => $userData['country'] ?? null,
+            'gender' => $userData['gender'] ?? null,
+        ];
+
+        $this->sendResponse($accountInfo);
+    }
+
+    /**
+     * PATCH /user/username — смена имени пользователя
+     */
+    public function updateUsername() {
+        $authUser = AuthMiddleware::requireAuth();
+        $input = $this->getInput();
+
+        $username = trim($input['username'] ?? '');
+
+        // Валидация
+        if (strlen($username) < 3 || strlen($username) > 50) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Username must be between 3 and 50 characters']);
+            exit();
+        }
+
+        if (!preg_match('/^[a-zA-Z0-9_]+$/', $username)) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Username can only contain letters, numbers and underscores']);
+            exit();
+        }
+
+        // Проверка уникальности
+        $db = Database::getInstance();
+        $existing = $db->query("SELECT id FROM users WHERE username = ? AND id != ?", [$username, $authUser['userId']])->fetch();
+
+        if ($existing) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Username is already taken']);
+            exit();
+        }
+
+        // Обновление
+        $db->query("UPDATE users SET username = ?, updated_at = NOW() WHERE id = ?", [$username, $authUser['userId']]);
+
+        $this->sendResponse(['username' => $username]);
+    }
+
+    /**
+     * PATCH /user/country — смена страны
+     */
+    public function updateCountry() {
+        $authUser = AuthMiddleware::requireAuth();
+        $input = $this->getInput();
+
+        $country = trim($input['country'] ?? '');
+
+        if (strlen($country) !== 2) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Country code must be 2 characters']);
+            exit();
+        }
+
+        $db = Database::getInstance();
+        $db->query("UPDATE users SET country = ?, updated_at = NOW() WHERE id = ?", [$country, $authUser['userId']]);
+
+        $this->sendResponse(['country' => $country]);
+    }
+
+    /**
+     * PATCH /user/gender — смена пола
+     */
+    public function updateGender() {
+        $authUser = AuthMiddleware::requireAuth();
+        $input = $this->getInput();
+
+        $gender = trim($input['gender'] ?? '');
+
+        if (strlen($gender) > 16) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Gender must be 16 characters or less']);
+            exit();
+        }
+
+        $db = Database::getInstance();
+        $db->query("UPDATE users SET gender = ?, updated_at = NOW() WHERE id = ?", [$gender, $authUser['userId']]);
+
+        $this->sendResponse(['gender' => $gender]);
+    }
+
+    /**
+     * Определение страны по IP (упрощённая версия)
+     */
+    private function getCountryByIP($ip) {
+        if (!$ip) return null;
+
+        // Простая проверка для примера (в реальности нужен GeoIP сервис)
+        // Для российских IP-адресов
+        if (preg_match('/^(85\.|176\.|178\.|188\.|5\.)/', $ip)) {
+            return 'Russia';
+        }
+
+        return null;
+    }
+
+    /**
      * PATCH /user/theme — сохранение темы оформления
      */
     public function updateTheme() {

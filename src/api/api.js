@@ -31,10 +31,14 @@ export const authAPI = {
   register:       (data)  => api.post('/auth/register', data),
   login:          (data)  => api.post('/auth/login', data),
   getMe:          ()      => api.get('/auth/me'),
+  getAccountInfo: ()      => api.get('/user/account-info'),
   updateTheme:    (theme) => api.patch('/user/theme',    { theme }),
   updateLanguage: (lang)  => api.patch('/user/language', { language: lang }),
   updateProfile:  (data)  => api.patch('/user/profile', data),
   updateVideoVolume: (volume) => api.patch('/user/video-volume', { volume }),
+  updateUsername: (username) => api.patch('/user/username', { username }),
+  updateCountry:  (country)  => api.patch('/user/country', { country }),
+  updateGender:   (gender)   => api.patch('/user/gender', { gender }),
   uploadAvatar:   (file)  => {
     const form = new FormData();
     form.append('avatar', file);

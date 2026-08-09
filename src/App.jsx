@@ -10,6 +10,7 @@ import Register from './pages/Register';
 import Profile from './pages/Profile';
 import PostPage from './pages/PostPage';
 import FollowList from './pages/FollowList';
+import Settings from './pages/Settings';
 import './styles/App.css';
 
 const PrivateRoute = ({ children }) => {
@@ -92,6 +93,14 @@ function App() {
                 element={
                   <PrivateRoute>
                     <FollowList />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/settings/*"
+                element={
+                  <PrivateRoute>
+                    <Settings />
                   </PrivateRoute>
                 }
               />

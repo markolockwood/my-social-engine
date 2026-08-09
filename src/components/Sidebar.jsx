@@ -39,6 +39,10 @@ const Sidebar = () => {
           <span className="nav-icon">👤</span>
           <span>{t('nav.profile')}</span>
         </Link>
+        <Link to="/settings" className="nav-item">
+          <span className="nav-icon">⚙️</span>
+          <span>{t('nav.settings')}</span>
+        </Link>
       </nav>
 
       <button className="tweet-btn">

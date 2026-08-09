@@ -64,6 +64,10 @@ try {
     $router->patch('/user/language', 'UserController', 'updateLanguage');
     $router->patch('/user/profile', 'UserController', 'updateProfile');
     $router->patch('/user/video-volume', 'UserController', 'updateVideoVolume');
+    $router->get('/user/account-info', 'UserController', 'getAccountInfo');
+    $router->patch('/user/username', 'UserController', 'updateUsername');
+    $router->patch('/user/country', 'UserController', 'updateCountry');
+    $router->patch('/user/gender', 'UserController', 'updateGender');
     $router->post('/upload/avatar', 'UserController', 'uploadAvatar');
 
     // Запуск роутера

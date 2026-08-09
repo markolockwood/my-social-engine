@@ -1,0 +1,67 @@
+.account-info-list {
+  padding: 0;
+}
+
+.account-info-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.15s;
+}
+
+.account-info-item.clickable {
+  cursor: pointer;
+}
+
+.account-info-item.clickable:hover {
+  background: var(--bg-hover);
+}
+
+.account-info-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.account-info-label {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.account-info-value {
+  font-size: 15px;
+  color: var(--text);
+  font-weight: 400;
+}
+
+.account-info-multiline {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.account-info-ip {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.account-info-hint {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.verified-badge {
+  color: var(--blue);
+  font-weight: 600;
+}
+
+.learn-more-link {
+  color: var(--blue);
+  text-decoration: none;
+}
+
+.learn-more-link:hover {
+  text-decoration: underline;
+}

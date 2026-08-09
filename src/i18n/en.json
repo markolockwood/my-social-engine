@@ -7,7 +7,8 @@
     "messages": "Messages",
     "bookmarks": "Bookmarks",
     "profile": "Profile",
-    "post": "Post"
+    "post": "Post",
+    "settings": "Settings"
   },
   "theme": {
     "to_dark": "Dark theme",
@@ -135,5 +136,90 @@
     "following": "Following",
     "no_followers": "No followers yet",
     "no_following": "Not following anyone yet"
+  },
+  "settings": {
+    "title": "Settings",
+    "account": {
+      "title": "Your account",
+      "description": "See information about your account, and learn about your account deactivation options.",
+      "account_info": "Account information",
+      "account_info_desc": "See your account information like your username and email address.",
+      "change_email": "Change your email",
+      "change_email_desc": "Change the email address linked to your account.",
+      "change_password": "Change your password",
+      "change_password_desc": "Change your password at any time.",
+      "deactivate": "Deactivate your account",
+      "deactivate_desc": "Find out how you can deactivate your account."
+    },
+    "privacy": {
+      "title": "Privacy and safety",
+      "description": "Manage what information you see and share on MyTwit.",
+      "chat": "Chat",
+      "chat_desc": "Manage who can message you and chat privacy settings.",
+      "audience": "Audience, media and tagging",
+      "audience_desc": "Manage what information you allow other people to see."
+    },
+    "account_info": {
+      "title": "Account information",
+      "username": "Username",
+      "verified": "Verified",
+      "verified_yes": "Verified",
+      "verified_no": "No.",
+      "learn_more": "Learn more",
+      "account_creation": "Account creation",
+      "country": "Country",
+      "language": "Language",
+      "language_en": "English",
+      "language_ru": "Русский",
+      "gender": "Gender",
+      "gender_male": "Male",
+      "gender_female": "Female",
+      "birth_date": "Birth date",
+      "birth_date_hint": "Change your date of birth on your profile.",
+      "age": "Age",
+      "not_set": "Not set"
+    },
+    "username": {
+      "title": "Change username",
+      "description": "Your username is unique and appears in your profile URL. Choose carefully.",
+      "label": "Username",
+      "placeholder": "username",
+      "save": "Save",
+      "saving": "Saving...",
+      "error_length": "Username must be between 3 and 50 characters",
+      "error_format": "Username can only contain letters, numbers and underscores",
+      "error_taken": "This username is already taken"
+    },
+    "country": {
+      "title": "Change country",
+      "description": "Select the country where you currently live.",
+      "label": "Country",
+      "select": "Select country",
+      "save": "Save",
+      "saving": "Saving...",
+      "error_required": "Please select a country",
+      "error_save": "Failed to save country"
+    },
+    "language": {
+      "title": "Change language",
+      "description": "Select the language you want to use on MyTwit.",
+      "save": "Save",
+      "saving": "Saving..."
+    },
+    "gender": {
+      "title": "Gender",
+      "description": "This won't be shown publicly. We use this data to personalize your experience.",
+      "male": "Male",
+      "female": "Female",
+      "custom": "Add your gender",
+      "custom_placeholder": "Enter your gender",
+      "characters": "characters",
+      "save": "Save",
+      "saving": "Saving...",
+      "error_required": "Please select a gender",
+      "error_custom_empty": "Please enter your gender",
+      "error_custom_length": "Gender must be 16 characters or less",
+      "error_save": "Failed to save gender"
+    }
   }
 }

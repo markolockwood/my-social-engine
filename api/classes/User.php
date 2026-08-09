@@ -32,10 +32,13 @@ class User {
 
         $passwordHash = password_hash($password, PASSWORD_BCRYPT);
 
+        // Сохранение IP-адреса регистрации
+        $registrationIp = $_SERVER['REMOTE_ADDR'] ?? null;
+
         $stmt = $this->db->query(
-            "INSERT INTO users (username, email, password_hash, display_name)
-             VALUES (?, ?, ?, ?) RETURNING id",
-            [$username, $email, $passwordHash, $displayName]
+            "INSERT INTO users (username, email, password_hash, display_name, registration_ip)
+             VALUES (?, ?, ?, ?, ?) RETURNING id",
+            [$username, $email, $passwordHash, $displayName, $registrationIp]
         );
 
         $result = $stmt->fetch();
@@ -65,7 +68,7 @@ class User {
     public function getById($id) {
         $stmt = $this->db->query(
             "SELECT id, username, email, display_name, bio, avatar_url, location, birth_date,
-                    created_at, theme_preference, language
+                    created_at, theme_preference, language, verified, registration_ip, country, gender
              FROM users WHERE id = ?",
             [$id]
         );

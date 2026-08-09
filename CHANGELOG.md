@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file. Full entrie
 
 **[Русская версия / Russian version](CHANGELOG_RU.md)**
 
+- [1.8.1](changelog/1.8.1.md) - 2026-08-09
 - [1.8.0](changelog/1.8.0.md) - 2026-08-08
 - [1.7.0](changelog/1.7.0.md) - 2026-08-07
 - [1.6.0.1](changelog/1.6.0.1.md) - 2026-08-06

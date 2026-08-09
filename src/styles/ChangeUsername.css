@@ -1,0 +1,148 @@
+.change-form-container {
+  padding: 16px 20px;
+  max-width: 600px;
+}
+
+.change-form-desc {
+  color: var(--text-muted);
+  font-size: 15px;
+  line-height: 1.4;
+  margin-bottom: 24px;
+}
+
+.change-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.change-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.change-form-label {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.change-form-input {
+  background: var(--bg);
+  border: 1px solid var(--input-border);
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 17px;
+  color: var(--text);
+  font-family: inherit;
+  transition: border-color 0.15s;
+}
+
+.change-form-input:focus {
+  outline: none;
+  border-color: var(--blue);
+}
+
+.change-form-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.change-form-hint {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.change-form-error {
+  color: #f91880;
+  font-size: 14px;
+  padding: 12px 16px;
+  background: rgba(249, 24, 128, 0.1);
+  border-radius: 8px;
+}
+
+.change-form-btn {
+  background: var(--blue);
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  padding: 12px 24px;
+  font-size: 17px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  width: fit-content;
+}
+
+.change-form-btn:hover:not(:disabled) {
+  opacity: 0.85;
+}
+
+.change-form-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Дополнительные стили для селектов */
+.change-form-select {
+  background: var(--bg);
+  border: 1px solid var(--input-border);
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 17px;
+  color: var(--text);
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.change-form-select:focus {
+  outline: none;
+  border-color: var(--blue);
+}
+
+.change-form-select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Стили для радио-кнопок */
+.change-form-radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.change-form-radio-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border: 1px solid var(--input-border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.change-form-radio-item:hover {
+  background: var(--bg-hover);
+}
+
+.change-form-radio-item.selected {
+  border-color: var(--blue);
+  background: var(--blue-dim);
+}
+
+.change-form-radio-item input[type="radio"] {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+}
+
+.change-form-radio-label {
+  font-size: 15px;
+  color: var(--text);
+  cursor: pointer;
+  flex: 1;
+}

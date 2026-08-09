@@ -1,0 +1,155 @@
+/* Составной селектор .layout.settings-layout нужен, чтобы наши grid-колонки
+   надёжно перебивали базовые правила .layout из App.css независимо от порядка
+   подключения CSS (одинарные классы с одинаковой специфичностью иначе спорили бы). */
+.layout.settings-layout {
+  grid-template-columns: 280px 1fr;
+}
+
+@media (max-width: 900px) {
+  .layout.settings-layout {
+    grid-template-columns: 80px 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .layout.settings-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.settings-main {
+  display: flex;
+  min-height: 100vh;
+}
+
+.settings-nav {
+  width: 360px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
+}
+
+.settings-nav-list {
+  padding: 4px 0;
+}
+
+.settings-nav-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.settings-nav-item:hover { background: var(--bg-hover); }
+
+.settings-nav-item.active {
+  background: var(--bg-hover);
+  font-weight: 700;
+}
+
+.settings-nav-item.active::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--blue);
+}
+
+.settings-chevron {
+  color: var(--text-muted);
+  font-size: 18px;
+}
+
+.settings-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.settings-back-btn {
+  display: none;
+}
+
+.settings-content-desc {
+  padding: 16px 20px 4px;
+  color: var(--text-muted);
+  font-size: 15px;
+  line-height: 1.4;
+}
+
+.settings-items {
+  padding: 8px 0;
+}
+
+.settings-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 20px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.settings-item:hover { background: var(--bg-hover); }
+
+.settings-item-icon {
+  font-size: 20px;
+  width: 28px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.settings-item-text { flex: 1; min-width: 0; }
+
+.settings-item-title {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.settings-item-desc {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* ===== Средний экран: адаптивная ширина колонок ===== */
+@media (max-width: 1100px) {
+  .settings-nav {
+    width: 300px;
+  }
+}
+
+/* ===== Узкий экран: список ИЛИ содержимое раздела, не обе колонки сразу ===== */
+@media (max-width: 1000px) {
+  .settings-main {
+    display: block;
+  }
+
+  .settings-nav {
+    width: 100%;
+    border-right: none;
+  }
+
+  .settings-content {
+    display: none;
+  }
+
+  .settings-back-btn {
+    display: flex;
+  }
+
+  .settings-main.settings-detail-open .settings-nav {
+    display: none;
+  }
+
+  .settings-main.settings-detail-open .settings-content {
+    display: block;
+  }
+}
