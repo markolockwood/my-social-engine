@@ -1059,11 +1059,23 @@ class PostController extends BaseController {
         // Хардкодим путь к FFmpeg или валидируем из конфига
         $ffmpegPath = '/usr/bin/ffmpeg';
 
-        // Если из конфига - проверяем, что это реальный исполняемый файл
+        // Whitelist разрешенных путей к FFmpeg для дополнительной безопасности
+        $allowedFFmpegPaths = [
+            '/usr/bin/ffmpeg',
+            '/usr/local/bin/ffmpeg',
+            '/opt/homebrew/bin/ffmpeg',  // macOS Homebrew
+            'C:\\ffmpeg\\bin\\ffmpeg.exe',  // Windows
+        ];
+
+        // Если из конфига - проверяем whitelist и executable
         if (isset($this->config['ffmpeg']['binary'])) {
             $configPath = $this->config['ffmpeg']['binary'];
-            if (is_executable($configPath)) {
+
+            // Проверяем что путь в whitelist И исполняемый
+            if (in_array($configPath, $allowedFFmpegPaths) && is_executable($configPath)) {
                 $ffmpegPath = $configPath;
+            } else {
+                error_log("FFmpeg path from config not in whitelist or not executable: {$configPath}");
             }
         }
 

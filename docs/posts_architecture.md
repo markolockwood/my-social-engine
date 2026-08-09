@@ -42,29 +42,56 @@
 
 Максимум 4 медиа любого типа из перечисленных.
 
-- **Изображения**: JPEG/PNG/GIF/WEBP, до 5MB каждое
+- **Изображения**: JPEG/PNG/WEBP, до 5MB каждое
   - Автоматическое создание thumbnail 600px для экономии трафика в ленте
+  - **Magic bytes проверка** через `FileValidator::isValidImage()` для защиты от поддельных файлов
 - **GIF**: до 10MB
   - Автоматическая конвертация в MP4 через FFmpeg (экономия ~96% размера)
-- **Видео**: MP4/WebM/AVI/MOV/MKV, до 100MB
+  - **Безопасная конвертация** через `proc_open()` с массивом аргументов (защита от command injection)
+  - **Magic bytes проверка** через `FileValidator::isValidGif()`
+- **Видео**: MP4/WebM/AVI/MOV/MPEG, до 100MB
   - HLS-конвертация через FFmpeg с множественными уровнями качества (360p, 720p, 1080p)
   - Генерация превью из первого кадра
   - Конвертация в H.264 (видео) + AAC (аудио) для кросс-браузерной совместимости
+  - **PID сохранение** в БД для возможности отмены конвертации (кроссплатформенно)
+
+### Безопасность загрузки
+
+**Валидация файлов:**
+- Проверка MIME type через `finfo_file()`
+- Проверка magic bytes (первые байты файла) через `FileValidator`
+- Проверка через `getimagesize()` для изображений
+- Централизованная конфигурация через `FileUploadConfig`
+
+**Защита от атак:**
+- **Path traversal**: все пути проверяются через `realpath()`
+- **Command injection**: FFmpeg вызывается через `proc_open()` с массивом
+- **CSRF**: Origin/Referer проверка для всех POST запросов
+- **Rate limiting**: защита от IP spoofing через whitelist прокси
+
+**Кроссплатформенная отмена загрузки:**
+- PID процесса FFmpeg сохраняется в `temp_uploads.process_pid`
+- Windows: убийство через `taskkill /F /PID <pid>`
+- Linux: убийство через `kill -9 <pid>`
+- Fallback на `pkill -f` если PID отсутствует
 
 ### API endpoints
 
 - `POST /api/upload/post-images` — загрузка изображений (возвращает `[{url, thumb, type: 'image'}]`)
 - `POST /api/upload/post-gif` — загрузка GIF с автоконвертацией в MP4 (возвращает `{url, type: 'gif'}`)
 - `POST /api/upload/post-video` — загрузка видео с HLS-конвертацией (возвращает `{url, thumb, type: 'video'}`)
-- `DELETE /api/upload/media` — удаление медиафайла с сервера
+- `DELETE /api/upload/media` — удаление медиафайла с сервера (проверяет владельца, path traversal защита)
+- `DELETE /api/upload/cancel` — отмена загрузки по tracking_id (убивает FFmpeg процесс по PID)
 
 ### Временные загрузки
 
 Таблица `temp_uploads` отслеживает неиспользованные медиафайлы:
-- Все загруженные медиа регистрируются как временные
+- Все загруженные медиа регистрируются как временные через `TempUploadsHelper`
+- Лимит: максимум 4 медиафайла одновременно (блокировка через `pg_advisory_lock`)
 - При создании поста удаляются из `temp_uploads`
 - Cron-задача очищает файлы старше 6 часов (см. [cleanup_temp_uploads.php](../cleanup_temp_uploads.php))
 - Cleanup при размонтировании `ComposeWidget` для комментариев
+- Колонка `process_pid` для отслеживания PID процессов конвертации
 
 ### Отображение
 
