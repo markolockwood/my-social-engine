@@ -2,9 +2,28 @@
 
 // CORS-заголовки для работы SPA
 header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
+
+// Загружаем конфигурацию для получения разрешённых доменов
+$config = require __DIR__ . '/../config/config.php';
+$allowedOrigins = $config['cors']['allowed_origins'];
+
+// Получаем origin запроса
+$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+
+// Проверяем, разрешён ли этот origin
+if (in_array($origin, $allowedOrigins)) {
+    header("Access-Control-Allow-Origin: {$origin}");
+} else {
+    // В development режиме разрешаем localhost для удобства разработки
+    if ($config['app']['environment'] === 'development' &&
+        (strpos($origin, 'http://localhost:') === 0 || strpos($origin, 'http://127.0.0.1:') === 0)) {
+        header("Access-Control-Allow-Origin: {$origin}");
+    }
+}
+
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS, PATCH');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
+header('Access-Control-Allow-Credentials: true');
 
 // Preflight-запросы (OPTIONS) завершаем сразу
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
@@ -14,9 +33,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 // Подключение зависимостей
 require_once __DIR__ . '/Router.php';
+require_once __DIR__ . '/middleware/CsrfMiddleware.php';
 require_once __DIR__ . '/controllers/AuthController.php';
 require_once __DIR__ . '/controllers/PostController.php';
 require_once __DIR__ . '/controllers/UserController.php';
+
+// CSRF защита для всех state-changing запросов
+CsrfMiddleware::verify();
 
 // Инициализация роутера
 $router = new Router();
@@ -31,6 +54,9 @@ try {
     $router->post('/auth/register', 'AuthController', 'register');
     $router->post('/auth/login', 'AuthController', 'login');
     $router->get('/auth/me', 'AuthController', 'me');
+    $router->post('/auth/refresh', 'AuthController', 'refresh');
+    $router->post('/auth/logout', 'AuthController', 'logout');
+    $router->post('/auth/logout-all', 'AuthController', 'logoutAll');
 
     // === POST ROUTES ===
     $router->get('/posts', 'PostController', 'index');

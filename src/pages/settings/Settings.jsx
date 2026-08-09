@@ -1,12 +1,12 @@
 import React from 'react';
 import { Link, useNavigate, useParams, Routes, Route, useLocation, Navigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '@/context/AuthContext';
 import AccountInformation from './AccountInformation';
 import ChangeUsername from './ChangeUsername';
 import ChangeCountry from './ChangeCountry';
 import ChangeLanguage from './ChangeLanguage';
 import ChangeGender from './ChangeGender';
-import '../styles/Settings.css';
+import './Settings.css';
 
 // Структура разделов настроек
 const SETTINGS_SECTIONS = [

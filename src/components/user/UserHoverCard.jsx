@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { usersAPI } from '../api/api';
-import { useAuth } from '../context/AuthContext';
-import '../styles/UserHoverCard.css';
+import { usersAPI } from '@/api/api';
+import { useAuth } from '@/context/AuthContext';
+import './UserHoverCard.css';
 
 const UserHoverCard = ({ username, position, onMouseEnter, onMouseLeave }) => {
   const { user: authUser, t } = useAuth();

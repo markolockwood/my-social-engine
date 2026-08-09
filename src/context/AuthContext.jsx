@@ -58,9 +58,10 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (username, password) => {
     const response = await authAPI.login({ username, password });
-    const { token, user } = response.data;
+    const { accessToken, refreshToken, user } = response.data;
 
-    localStorage.setItem('token', token);
+    localStorage.setItem('token', accessToken);
+    localStorage.setItem('refreshToken', refreshToken);
     localStorage.setItem('user', JSON.stringify(user));
     setUser(user);
     setTheme(user.theme_preference || 'light');
@@ -71,9 +72,10 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (username, email, password, displayName) => {
     const response = await authAPI.register({ username, email, password, displayName });
-    const { token, user } = response.data;
+    const { accessToken, refreshToken, user } = response.data;
 
-    localStorage.setItem('token', token);
+    localStorage.setItem('token', accessToken);
+    localStorage.setItem('refreshToken', refreshToken);
     localStorage.setItem('user', JSON.stringify(user));
     setUser(user);
     setTheme(user.theme_preference || 'light');
@@ -82,8 +84,20 @@ export const AuthProvider = ({ children }) => {
     return user;
   };
 
-  const logout = () => {
+  const logout = async () => {
+    const refreshToken = localStorage.getItem('refreshToken');
+
+    // Отправляем запрос на удаление refresh token на сервере
+    if (refreshToken) {
+      try {
+        await authAPI.logout({ refreshToken });
+      } catch (err) {
+        console.error('Logout error:', err);
+      }
+    }
+
     localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
     localStorage.removeItem('user');
     setUser(null);
     setTheme('light');

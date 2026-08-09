@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { usersAPI } from '../api/api';
-import { useAuth } from '../context/AuthContext';
+import { usersAPI } from '@/api/api';
+import { useAuth } from '@/context/AuthContext';
 import UserLink from './UserLink';
-import '../styles/UserCard.css';
+import './UserCard.css';
 
 const UserCard = ({ user, onFollowChange }) => {
   const { user: authUser, t } = useAuth();

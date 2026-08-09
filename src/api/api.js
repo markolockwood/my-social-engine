@@ -14,15 +14,88 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Обработка ошибок
+// Автоматическое обновление токена при истечении
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error, token = null) => {
+  failedQueue.forEach(prom => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
+// Обработка ошибок и автоматический refresh
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
+  async (error) => {
+    const originalRequest = error.config;
+
+    // Если 401 и это не повторная попытка и не запрос на refresh
+    if (error.response?.status === 401 && !originalRequest._retry && originalRequest.url !== '/auth/refresh') {
+
+      if (isRefreshing) {
+        // Если уже идёт обновление токена, добавляем запрос в очередь
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        }).then(() => {
+          return api(originalRequest);
+        }).catch(err => {
+          return Promise.reject(err);
+        });
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      const refreshToken = localStorage.getItem('refreshToken');
+
+      if (!refreshToken) {
+        // Нет refresh токена — очищаем всё и редиректим на логин
+        localStorage.removeItem('token');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+        return Promise.reject(error);
+      }
+
+      try {
+        // Запрашиваем новый access token
+        const { data } = await axios.post('/api/auth/refresh', { refreshToken });
+        const newAccessToken = data.accessToken;
+
+        // Сохраняем новый токен
+        localStorage.setItem('token', newAccessToken);
+
+        // Обновляем токен в заголовке оригинального запроса
+        originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+
+        // Обрабатываем очередь запросов
+        processQueue(null, newAccessToken);
+
+        isRefreshing = false;
+
+        // Повторяем оригинальный запрос с новым токеном
+        return api(originalRequest);
+
+      } catch (err) {
+        // Refresh token тоже протух или невалиден — logout
+        processQueue(err, null);
+        isRefreshing = false;
+
+        localStorage.removeItem('token');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+
+        return Promise.reject(err);
+      }
     }
+
     return Promise.reject(error);
   }
 );
@@ -30,6 +103,8 @@ api.interceptors.response.use(
 export const authAPI = {
   register:       (data)  => api.post('/auth/register', data),
   login:          (data)  => api.post('/auth/login', data),
+  logout:         (data)  => api.post('/auth/logout', data),
+  refresh:        (refreshToken) => api.post('/auth/refresh', { refreshToken }),
   getMe:          ()      => api.get('/auth/me'),
   getAccountInfo: ()      => api.get('/user/account-info'),
   updateTheme:    (theme) => api.patch('/user/theme',    { theme }),

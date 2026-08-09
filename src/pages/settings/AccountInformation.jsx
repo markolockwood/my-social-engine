@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { authAPI } from '../api/api';
-import EditProfileModal from '../components/EditProfileModal';
-import '../styles/AccountInformation.css';
+import { useAuth } from '@/context/AuthContext';
+import { authAPI } from '@/api/api';
+import EditProfileModal from '@/components/user/EditProfileModal';
+import './AccountInformation.css';
 
 const AccountInformation = () => {
   const { user, t } = useAuth();

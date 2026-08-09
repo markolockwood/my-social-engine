@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { authAPI } from '../api/api';
-import '../styles/ChangeUsername.css';
+import { useAuth } from '@/context/AuthContext';
+import { authAPI } from '@/api/api';
+import './ChangeForm.css';
 
 const ChangeUsername = () => {
   const { user, setUser, t } = useAuth();

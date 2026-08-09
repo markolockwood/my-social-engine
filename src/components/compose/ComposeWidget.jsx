@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { postsAPI } from '../api/api';
-import { useAuth } from '../context/AuthContext';
-import { useUpload } from '../context/UploadContext';
+import { postsAPI } from '@/api/api';
+import { useAuth } from '@/context/AuthContext';
+import { useUpload } from '@/context/UploadContext';
 import MediaUpload from './MediaUpload';
-import { CrossTabSync, debounce } from '../utils/crossTabSync';
-import '../styles/ComposeWidget.css';
+import { CrossTabSync, debounce } from '@/utils/crossTabSync';
+import './ComposeWidget.css';
 
 function loadDraft(key) {
   if (!key) return { content: '' };

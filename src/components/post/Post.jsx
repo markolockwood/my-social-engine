@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { postsAPI } from '../api/api';
-import { useAuth } from '../context/AuthContext';
-import { usePostsContext } from '../context/PostsContext';
-import ComposeReplyModal from './ComposeReplyModal';
+import { postsAPI } from '@/api/api';
+import { useAuth } from '@/context/AuthContext';
+import { usePostsContext } from '@/context/PostsContext';
+import ComposeReplyModal from '@/components/compose/ComposeReplyModal';
 import QuotedPost from './QuotedPost';
 import PostMedia from './PostMedia';
-import UserLink from './UserLink';
-import '../styles/Post.css';
+import UserLink from '@/components/user/UserLink';
+import './Post.css';
 
 /**
  * Компонент поста для отображения в ленте/профиле

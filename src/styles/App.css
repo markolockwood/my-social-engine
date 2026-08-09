@@ -3,6 +3,7 @@
   --bg:           #ffffff;
   --bg-secondary: #f7f9f9;
   --bg-hover:     rgba(0, 0, 0, 0.03);
+  --modal-bg:     rgba(255, 255, 255, 1.00);
   --text:         #0f1419;
   --text-muted:   #536471;
   --text-secondary: rgb(215, 219, 220);
@@ -22,6 +23,7 @@
   --bg:           rgb(0, 0, 0);
   --bg-secondary: rgba(0, 0, 0, 0.00);
   --bg-hover:     rgba(255, 255, 255, 0.03);
+  --modal-bg:     rgb(20, 20, 20);
   --text:         rgb(231, 233, 234);
   --text-muted:   #8b98a5;
   --text-secondary: rgb(215, 219, 220);

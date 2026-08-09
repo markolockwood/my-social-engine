@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { usersAPI } from '../api/api';
 import { useAuth } from '../context/AuthContext';
-import UserCard from '../components/UserCard';
-import '../styles/FollowList.css';
+import UserCard from '@/components/user/UserCard';
+import './FollowList.css';
 
 const FollowList = () => {
   const { username, tab } = useParams(); // tab: 'followers' or 'following'

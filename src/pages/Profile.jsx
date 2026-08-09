@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { usersAPI, postsAPI } from '../api/api';
 import { useAuth } from '../context/AuthContext';
-import Post from '../components/Post';
-import QuotedPost from '../components/QuotedPost';
-import EditProfileModal from '../components/EditProfileModal';
-import '../styles/Profile.css';
+import Post from '@/components/post/Post';
+import QuotedPost from '@/components/post/QuotedPost';
+import EditProfileModal from '@/components/user/EditProfileModal';
+import './Profile.css';
 
 /**
  * Вспомогательный компонент для отображения постов с метаданными в табе "Посты"
@@ -111,6 +111,12 @@ const Profile = () => {
         usersAPI.getByUsername(username),
         usersAPI.getUserPosts(username),
       ]);
+
+      // Проверка что данные пользователя загрузились
+      if (!userRes.data || !userRes.data.user) {
+        throw new Error('User data not found');
+      }
+
       setProfileUser(userRes.data.user);
       setIsFollowing(userRes.data.user.is_following || false);
       setPosts(postsRes.data.posts || []);

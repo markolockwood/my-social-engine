@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import ReactDOM from 'react-dom';
-import { postsAPI } from '../api/api';
-import { useAuth } from '../context/AuthContext';
-import '../styles/ComposeReplyModal.css';
+import { postsAPI } from '@/api/api';
+import { useAuth } from '@/context/AuthContext';
+import './ComposeReplyModal.css';
 
 /**
  * Модальное окно для создания быстрого ответа (quick reply)

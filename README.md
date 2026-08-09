@@ -1,77 +1,86 @@
 # MyTwit - Social Network
 
-Ready-to-use Twitter-style social network script built with React, PHP 8.1 and PostgreSQL. Deploys on any local or production server with Nginx. Currently no installer available, manual setup required.
+A ready-to-use Twitter-like social network built with React, PHP 8.1, and PostgreSQL. Deployable on any local or production server with Nginx. No installer yet, everything is done manually.
 
-**🇷🇺 [Russian version / Русскоязычная версия](README_RU.md)**
+**🇷🇺 [Русская версия / Russian version](README_RU.md)**
 
-**📋 [Changelog](CHANGELOG.md)** | **[Changelog русскоязычный](CHANGELOG_RU.md)**
+**📋 [Changelog](CHANGELOG.md)** | **[Changelog RU](CHANGELOG_RU.md)**
 
 ## Features
 
-### Core Functions
-- ✅ User registration and authorization
-- ✅ JWT authentication
-- ✅ SPA without page reloads
+### Core Functionality
+- ✅ User registration and authentication
+- ✅ JWT authentication with access/refresh tokens (access token 15 minutes, refresh token 30 days)
+- ✅ Automatic token refresh without logout
+- ✅ SPA with no page reloads
 - ✅ Responsive design (desktop, tablet, mobile)
 - ✅ Dark theme with database persistence
 - ✅ Multi-language support (EN, RU) with editable translations
 
-### Posts and Interaction
+### Posts and Interactions
 - ✅ Create posts with text (up to 280 characters)
 - ✅ Attach images to posts (up to 4 per post)
 - ✅ Attach GIFs with automatic MP4 conversion
 - ✅ Attach videos with HLS conversion (360p/720p/1080p)
 - ✅ Custom video player with quality selection and volume persistence
-- ✅ Likes
+- ✅ Like posts
 - ✅ Comments (replies and nested replies)
 - ✅ Quote posts
-- ✅ Quick reply without leaving feed
-- ✅ View counter with session-based deduplication (feed and post-detail views count as one event, via Redis)
+- ✅ Quick reply without leaving the feed
+- ✅ View counter with session deduplication (counts feed and post page views as one event)
 - ✅ Dynamic feed updates
 - ✅ Media lightbox with navigation
 
 ### Profiles
 - ✅ User profiles with bio, location, website
 - ✅ Avatar upload
-- ✅ User posts list
-- ✅ Edit profile
-- ✅ Follow/unfollow users, followers/following lists
+- ✅ User post list
+- ✅ Profile editing
+- ✅ Follow/unfollow users, follower and following lists
+- ✅ Account settings page (change username, country, gender, language)
 
 ### Media Processing
 - ✅ Automatic thumbnail generation for images
-- ✅ GIF to MP4 conversion via FFmpeg (~96% size savings)
-- ✅ Video HLS transcoding in multiple qualities (360p/720p/1080p)
-- ✅ Automatic temp file cleanup after 6 hours
+- ✅ GIF to MP4 conversion via FFmpeg (~96% size reduction)
+- ✅ HLS video transcoding in multiple qualities (360p/720p/1080p)
+- ✅ Automatic cleanup of temporary files after 6 hours
 - ✅ Quality selection during video playback
 - ✅ Volume persistence in database
+- ✅ Global media upload indicator
 
 ### Security
+- ✅ Access/Refresh token system — short-lived access tokens (15 min)
+- ✅ Automatic token rotation — seamless refresh without logout
+- ✅ Logout from all devices — ability to revoke all active sessions
 - ✅ Rate limiting on registration, login, and post creation
-- ✅ MIME type validation via file content (not extension)
-- ✅ CSP headers for XSS protection
-- ✅ File size limits (images 5MB, GIFs 10MB, videos 100MB)
+- ✅ IP validation — protection against SQL injection via proxy headers
+- ✅ Path traversal protection — path validation via `realpath()` when deleting files
+- ✅ CORS whitelist — only specified domains allowed (not `*`)
+- ✅ JWT secret in .env — cryptographically secure secret not stored in Git
+- ✅ MIME type verification via file content (not extension)
+- ✅ File size limits (images 5MB, GIF 10MB, video 100MB)
 - ✅ FFmpeg path validation against directory traversal
 - ✅ Automatic media deletion when posts are deleted
 
-## Tech Stack
+## Technologies
 
 ### Frontend
 - **React 18** — UI library
-- **React Router** — SPA routing
-- **Vite** — fast build tool and dev server
-- **Axios** — HTTP client
+- **React Router** — routing for SPA
+- **Vite** — fast build and dev server with alias support (`@/`)
+- **Axios** — HTTP client with automatic token refresh
 - **HLS.js** — video streaming library
 
 ### Backend
 - **PHP 8.1** — server-side logic
 - **PostgreSQL** — relational database
-- **Redis** — view deduplication and other ephemeral data (future: presence/typing indicators for chat)
-- **JWT** — authentication
+- **Redis** — view deduplication and other ephemeral data (future: presence/typing for chat)
+- **JWT** — authentication with access/refresh tokens
 - **FFmpeg** — video/GIF processing
 
 ### Web Server
 - **Nginx** — web server (Linux/WSL)
-- **PHP-FPM** — PHP FastCGI Process Manager
+- **PHP-FPM** — FastCGI process manager for PHP
 
 ## System Requirements
 
@@ -93,7 +102,7 @@ extension=fileinfo
 extension=redis
 ```
 
-Enable functions in php.ini:
+Allow functions in php.ini:
 ```ini
 disable_functions = 
 ; Remove: exec, proc_open, proc_close, proc_get_status
@@ -101,9 +110,9 @@ disable_functions =
 
 ## Installation
 
-> **Important:** the instructions below assume a standard Linux server layout (Ubuntu/Debian with Nginx and PHP installed via apt, running as the `www-data` user). If your server is managed through a control panel (aaPanel/BT-Panel, cPanel, Plesk, ISPmanager, etc.), paths and service names will differ — at minimum: where domain Nginx configs live, the PHP-FPM systemd unit name, the `php.ini` path, the web server's system user, and how PHP extensions are installed (via pecl instead of apt if the panel compiled PHP from source). Check your panel's documentation for the equivalent paths.
+> **Important:** The instructions below are oriented towards a standard Linux server structure (Ubuntu/Debian with Nginx and PHP installed via apt, running under the `www-data` user). If your server is managed through a control panel (aaPanel/BT-Panel, cPanel, Plesk, ISPmanager, etc.), paths and service names will differ — at minimum: Nginx domain config locations, PHP-FPM systemd unit name, `php.ini` path, web server system user, and PHP extension installation method (via pecl instead of apt if PHP was compiled by the panel from source). Check your panel's documentation for equivalent paths.
 
-### 1. Clone repository and install dependencies
+### 1. Clone Repository and Install Dependencies
 
 ```bash
 git clone <repository-url>
@@ -111,9 +120,39 @@ cd mytwit
 npm install
 ```
 
-### 2. Database setup
+### 2. Configure Environment Variables
 
-Create database and run SQL scripts:
+Create a `.env` file in the project root based on `.env.example`:
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` and **replace** `JWT_SECRET` with a unique value:
+
+```bash
+# Generate cryptographically secure secret (choose one method):
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+# or
+openssl rand -hex 32
+# or
+php -r "echo bin2hex(random_bytes(32));"
+```
+
+Copy the generated value to `.env`:
+
+```env
+JWT_SECRET=your_generated_secret_here
+APP_ENV=production
+APP_URL=http://your-domain.com
+CORS_ALLOWED_ORIGINS=http://your-domain.com,https://your-domain.com
+```
+
+⚠️ **Important:** Never commit `.env` to Git!
+
+### 3. Database Setup
+
+Create database and execute SQL scripts:
 
 ```bash
 psql -U postgres
@@ -135,12 +174,17 @@ Then run migrations:
 \i database/migrations/008_add_media_thumbnails.sql
 \i database/migrations/009_temp_uploads.sql
 \i database/migrations/010_add_video_volume.sql
-\i database/migrations/011_add_tracking_id_to_temp_uploads.sql
+\i database/migrations/012_add_account_info_fields.sql
+\i database/migrations/013_add_refresh_tokens.sql
 ```
 
-### 3. Install and configure Redis
+### 4. Configure Application Settings
 
-Redis is used to deduplicate post views (and in the future for chat presence/typing indicators). Install the server and PHP extension:
+Edit [`config/config.php`](config/config.php) if needed. Main settings are now read from `.env`.
+
+### 5. Install and Configure Redis
+
+Redis is used for post view deduplication (and future presence/typing indicators for chat). Install the server and PHP extension:
 
 ```bash
 sudo apt install redis-server
@@ -151,26 +195,22 @@ sudo apt install php8.1-redis
 sudo systemctl restart php8.1-fpm
 ```
 
-Verify it works:
+Verify everything works:
 
 ```bash
-redis-cli ping        # should reply PONG
-php -m | grep redis   # should print "redis"
+redis-cli ping        # should respond PONG
+php -m | grep redis   # should output "redis"
 ```
 
-If PHP was not installed through your system's package manager (common with control panels like aaPanel), `php8.1-redis` via apt won't install — use `pecl install redis` for that specific PHP build and manually add `extension=redis.so` to `php.ini`.
+If PHP is not installed via system package manager (relevant for control panels like aaPanel), `php8.1-redis` via apt won't work — use `pecl install redis` for your specific PHP build and manually add `extension=redis.so` to `php.ini`.
 
-### 4. Application Configuration
+### 6. Configure Web Server (Nginx)
 
-Edit [`config/config.php`](config/config.php) file:
+Create a configuration file for your domain. On standard Ubuntu/Debian servers, domain configs are in `/etc/nginx/sites-available/` with symlinks in `/etc/nginx/sites-enabled/`; in control panels (aaPanel, cPanel, etc.), they're in a proprietary location, and configs are usually created through the panel interface rather than manually.
 
-### 5. Web Server Setup (Nginx)
+**Example configuration:** see the [`nginx.conf`](nginx.conf) file in the project root
 
-Create a configuration file for your domain. On a standard Ubuntu/Debian server, domain configs live in `/etc/nginx/sites-available/` with a symlink in `/etc/nginx/sites-enabled/`; on control panels (aaPanel, cPanel, etc.) they live wherever the panel keeps them and are usually created and enabled through the panel's UI rather than by hand.
-
-**Example configuration:** see [`nginx.conf`](nginx.conf) file in the project root
-
-After creating configuration (standard server):
+After creating the config (on standard server):
 
 ```bash
 # Create symbolic link
@@ -183,31 +223,31 @@ sudo nginx -t
 sudo systemctl restart nginx
 ```
 
-Ensure PHP-FPM is running (the service name depends on how PHP was installed — typically `php8.1-fpm` on a standard server, but it can differ on control panels, e.g. `php-fpm-81`):
+Ensure PHP-FPM is running (service name depends on PHP installation method — on standard server usually `php8.1-fpm`, in control panels may differ, e.g. `php-fpm-81`):
 
 ```bash
 sudo systemctl status php8.1-fpm
 sudo systemctl start php8.1-fpm  # if not running
 ```
 
-### 6. Set File Permissions
+### 7. Configure File Permissions
 
 ```bash
-# Create uploads directories
+# Create upload directories
 mkdir -p uploads/avatars uploads/posts uploads/posts/thumbs uploads/gifs uploads/videos
 ```
 
-Permissions need to match the user PHP-FPM runs as — typically `www-data` on a standard server, but control panels often use a dedicated system user instead (e.g. `www` in aaPanel). You can find it in the PHP-FPM pool config (the `user` directive in `php-fpm.conf`/`www.conf`) or from the ownership of the rest of the project's files.
+Set permissions for the user running PHP-FPM — on standard server usually `www-data`, in control panels may be a separate system user (e.g. `www` in aaPanel). Check the PHP-FPM pool config (`user` directive in `php-fpm.conf`/`www.conf`) or the owner of other project files.
 
 ```bash
-# Example for a standard server (Ubuntu/Debian):
+# Example for standard server (Ubuntu/Debian):
 sudo chown -R www-data:www-data uploads/
 sudo chmod -R 755 uploads/
 ```
 
-`755` is enough as long as PHP-FPM runs as the same user that owns the folder. Avoid leaving `777` permanently — that grants write access to any process on the server, not just the web server.
+`755` permissions are sufficient if PHP-FPM runs as the same user that owns the folder. Don't use `777` permanently — that grants write access to any process on the server, not just the web server.
 
-### 7. Setup Cleanup Cron Task
+### 8. Configure Cron Job for Cleanup
 
 Add to crontab to clean old temporary files:
 
@@ -215,19 +255,19 @@ Add to crontab to clean old temporary files:
 # Edit crontab
 crontab -e
 
-# Add line (runs every 30 minutes, use your actual project path):
+# Add line (runs every 30 minutes, specify your project path):
 */30 * * * * php /path/to/project/cleanup_temp_uploads.php
 ```
 
-Control panels usually have their own cron UI (e.g. "Cron Jobs" in aaPanel) — using that can be more convenient than `crontab -e` since the panel fills in the correct PHP binary path for you.
+Control panels usually have their own cron job interface (e.g. "Scheduled Tasks" in aaPanel) — it may be more convenient than `crontab -e`, as the panel automatically inserts the correct PHP binary path.
 
-### 8. Build and Run
+### 9. Build and Run
 
 ```bash
 npm run build
 ```
 
-After build, open your domain in browser. Web server restart not required.
+After build, open your domain in a browser. No web server restart needed.
 
 Run `npm run build` after each change in `src/`.
 
@@ -246,32 +286,116 @@ Application will be available at **http://your-domain:3333**
 ```
 your-project/
 ├── api/                      # Backend PHP API
-│   ├── classes/              # Models (Database, User, Post, JWT)
+│   ├── classes/              # Models (Database, User, Post, JWT, Redis)
 │   ├── controllers/          # Controllers (Auth, Post, User)
 │   ├── middleware/           # AuthMiddleware, RateLimitMiddleware
 │   ├── Router.php            # Router
 │   └── index.php             # API entry point
 ├── config/                   # Configuration
+│   └── config.php            # Main config (reads .env)
 ├── database/                 # SQL schema and migrations
+│   ├── schema.sql            # Initial DB schema
+│   ├── migrations/           # DB migrations
 ├── src/                      # Frontend React
-│   ├── api/                  # API client
-│   ├── components/           # UI components
-│   ├── context/              # AuthContext, UploadContext + i18n
+│   ├── api/                  # API client with auto-refresh tokens
+│   ├── components/           # UI components (organized by features)
+│   │   ├── compose/          # Post creation components
+│   │   ├── layout/           # Layout, Sidebar, MobileNav
+│   │   ├── post/             # Post display components
+│   │   └── user/             # User components
+│   ├── context/              # AuthContext, UploadContext, PostsContext
 │   ├── i18n/                 # Translations (EN, RU)
 │   ├── pages/                # Application pages
-│   └── styles/               # CSS styles
+│   │   └── settings/         # Settings subpages
+│   └── styles/               # Global CSS styles
 ├── uploads/                  # Uploaded files
 │   ├── avatars/              # User avatars
 │   ├── posts/                # Post images
 │   ├── posts/thumbs/         # Image thumbnails
 │   ├── gifs/                 # GIFs converted to MP4
 │   └── videos/               # HLS video streams
+├── .env                      # Environment variables (DO NOT commit!)
 ├── package.json
-├── vite.config.js
-├── nginx.conf                # Nginx configuration example
-├── cleanup_temp_uploads.php  # Cron task for temp file cleanup
-└── README.md
+├── vite.config.js            # Vite config with alias @ → src/
+├── nginx.conf                # Example Nginx configuration
+└── cleanup_temp_uploads.php  # Cron task for temp file cleanup
 ```
+
+## Security Architecture
+
+### Access/Refresh Token Flow
+
+```
+┌─────────────┐
+│   Login     │
+└──────┬──────┘
+       │
+       ▼
+┌────────────────────────────────────┐
+│ Server generates:                 │
+│ • Access Token  (15 minutes)      │
+│ • Refresh Token (30 days, in DB)  │
+└────────┬───────────────────────────┘
+         │
+         ▼
+┌────────────────────────────────────┐
+│ Client saves in localStorage      │
+└────────┬───────────────────────────┘
+         │
+         ▼
+┌────────────────────────────────────┐
+│ Each request:                     │
+│ Authorization: Bearer {access}    │
+└────────┬───────────────────────────┘
+         │
+         ▼
+    ╔════════════════════╗
+    ║ Access token       ║
+    ║ valid?             ║
+    ╚════════╦═══════════╝
+         ✅  │  ❌
+             │
+    ┌────────┴────────┐
+    │                 │
+    ▼                 ▼
+┌────────┐      ┌──────────────────────┐
+│Response│      │ 401 Unauthorized     │
+└────────┘      └──────────┬───────────┘
+                           │
+                           ▼
+                ┌─────────────────────────┐
+                │ Frontend automatically: │
+                │ POST /auth/refresh      │
+                │ {refreshToken}          │
+                └──────────┬──────────────┘
+                           │
+                           ▼
+                    ╔═══════════════╗
+                    ║ Refresh token ║
+                    ║ valid in DB?  ║
+                    ╚═══════╦═══════╝
+                        ✅  │  ❌
+                            │
+                   ┌────────┴────────┐
+                   │                 │
+                   ▼                 ▼
+         ┌──────────────────┐  ┌────────────┐
+         │ New access       │  │ Logout +   │
+         │ token (15 min)   │  │ Redirect   │
+         └────────┬─────────┘  └────────────┘
+                  │
+                  ▼
+         ┌──────────────────┐
+         │ Retry original   │
+         │ request          │
+         └──────────────────┘
+```
+
+**Advantages:**
+- If access token is stolen → access only for 15 minutes
+- Refresh token stored in DB → can be revoked (logout-all)
+- User stays logged in with active usage
+- Automatic token rotation is transparent to user
 
 ## Documentation
 
@@ -287,6 +411,9 @@ your-project/
 - [ ] Bookmarks
 - [ ] Lists
 - [ ] Verified accounts
+- [ ] CSRF protection (form tokens)
+- [ ] httpOnly cookies instead of localStorage
+- [ ] "Active Sessions" page with device management
 
 ## License
 
@@ -294,4 +421,4 @@ All rights reserved.
 
 ---
 
-**Note:** This project requires Linux environment for full functionality. Windows users should use WSL (Windows Subsystem for Linux).
+**Note:** This project requires a Linux environment for full functionality. Windows users should use WSL (Windows Subsystem for Linux).

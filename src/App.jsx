@@ -1,18 +1,18 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider, useAuth } from './context/AuthContext';
-import { UploadProvider } from './context/UploadContext';
-import { PostsProvider } from './context/PostsContext';
-import GlobalUploadIndicator from './components/GlobalUploadIndicator';
-import Layout from './components/Layout';
-import Home from './pages/Home';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import Profile from './pages/Profile';
-import PostPage from './pages/PostPage';
-import FollowList from './pages/FollowList';
-import Settings from './pages/Settings';
-import './styles/App.css';
+import { AuthProvider, useAuth } from '@/context/AuthContext';
+import { UploadProvider } from '@/context/UploadContext';
+import { PostsProvider } from '@/context/PostsContext';
+import GlobalUploadIndicator from '@/components/layout/GlobalUploadIndicator';
+import Layout from '@/components/layout/Layout';
+import Home from '@/pages/Home';
+import Login from '@/pages/Login';
+import Register from '@/pages/Register';
+import Profile from '@/pages/Profile';
+import PostPage from '@/pages/PostPage';
+import FollowList from '@/pages/FollowList';
+import Settings from '@/pages/settings/Settings';
+import '@/styles/App.css';
 
 // Оборачивает приватную область (Layout с сайдбаром) целиком: если пользователь не
 // авторизован — редирект на /login до того, как Layout и его дочерние роуты успеют смонтироваться.

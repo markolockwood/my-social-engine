@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { postsAPI } from '../api/api';
-import { useAuth } from '../context/AuthContext';
-import { usePostsContext } from '../context/PostsContext';
+import { postsAPI } from '@/api/api';
+import { useAuth } from '@/context/AuthContext';
+import { usePostsContext } from '@/context/PostsContext';
 import VideoPlayer from './VideoPlayer';
 import Post from './Post';
-import ComposeWidget from './ComposeWidget';
-import ComposeReplyModal from './ComposeReplyModal';
+import ComposeWidget from '@/components/compose/ComposeWidget';
+import ComposeReplyModal from '@/components/compose/ComposeReplyModal';
 import RepliesSortDropdown from './RepliesSortDropdown';
-import '../styles/ImageLightbox.css';
+import './MediaLightbox.css';
 
 const MediaLightbox = ({ media, initialIndex, post, onClose }) => {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);

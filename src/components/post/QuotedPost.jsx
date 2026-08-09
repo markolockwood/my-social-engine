@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import '../styles/QuotedPost.css';
+import { useAuth } from '@/context/AuthContext';
+import './QuotedPost.css';
 
 /**
  * Компонент цитируемого поста (quoted post)

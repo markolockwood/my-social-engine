@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useImperativeHandle, forwardRef } from 'react';
 import Hls from 'hls.js';
-import { useAuth } from '../context/AuthContext';
-import '../styles/VideoPlayer.css';
+import { useAuth } from '@/context/AuthContext';
+import './VideoPlayer.css';
 
 const VideoPlayer = forwardRef(({
   src,

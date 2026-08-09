@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useAuth } from '../context/AuthContext';
-import '../styles/RepliesSortDropdown.css';
+import { useAuth } from '@/context/AuthContext';
+import './RepliesSortDropdown.css';
 
 /**
  * Выпадающий список для сортировки комментариев

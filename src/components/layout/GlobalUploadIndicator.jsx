@@ -1,6 +1,6 @@
 import React from 'react';
-import { useUpload } from '../context/UploadContext';
-import '../styles/GlobalUploadIndicator.css';
+import { useUpload } from '@/context/UploadContext';
+import './GlobalUploadIndicator.css';
 
 /**
  * Глобальный индикатор загрузок, показывается в углу экрана

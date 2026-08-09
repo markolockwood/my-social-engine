@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import '../styles/ChangeUsername.css';
+import { useAuth } from '@/context/AuthContext';
+import './ChangeForm.css';
 
 const ChangeLanguage = () => {
   const { user, language, changeLanguage, t } = useAuth();

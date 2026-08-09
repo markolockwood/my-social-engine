@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { postsAPI } from '../api/api';
 import { useAuth } from '../context/AuthContext';
-import ComposePost from '../components/ComposePost';
-import Post from '../components/Post';
-import '../styles/Home.css';
+import ComposePost from '@/components/compose/ComposePost';
+import Post from '@/components/post/Post';
+import './Home.css';
 
 /**
  * Главная страница - лента новостей

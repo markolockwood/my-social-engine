@@ -9,15 +9,7 @@ class User {
 
     // Регистрирует нового пользователя, возвращает его id
     public function register($username, $email, $password, $displayName) {
-        $stmt = $this->db->query(
-            "SELECT id FROM users WHERE username = ? OR email = ?",
-            [$username, $email]
-        );
-
-        if ($stmt->fetch()) {
-            throw new Exception("Username or email already exists");
-        }
-
+        // Валидация формата ПЕРЕД проверкой в БД
         if (strlen($username) < 3 || strlen($username) > 50) {
             throw new Exception("Username must be between 3 and 50 characters");
         }
@@ -28,6 +20,17 @@ class User {
 
         if (strlen($password) < 6) {
             throw new Exception("Password must be at least 6 characters");
+        }
+
+        // Проверка существования (не раскрываем что именно занято)
+        $stmt = $this->db->query(
+            "SELECT id FROM users WHERE username = ? OR email = ?",
+            [$username, $email]
+        );
+
+        if ($stmt->fetch()) {
+            // ОБОБЩЕННОЕ сообщение - защита от user enumeration
+            throw new Exception("Registration failed. Please try different credentials");
         }
 
         $passwordHash = password_hash($password, PASSWORD_BCRYPT);

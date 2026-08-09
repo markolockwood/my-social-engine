@@ -50,19 +50,37 @@ class RateLimitMiddleware {
     }
 
     /**
-     * Получить IP адрес клиента
+     * Получить IP адрес клиента с защитой от IP spoofing
      */
     public static function getClientIp() {
-        // Проверяем заголовки прокси
-        if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-            $ip = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR'])[0];
-        } elseif (!empty($_SERVER['HTTP_X_REAL_IP'])) {
-            $ip = $_SERVER['HTTP_X_REAL_IP'];
-        } else {
-            $ip = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+        $remoteAddr = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+
+        // Список доверенных прокси (локальный Nginx)
+        $trustedProxies = [
+            '127.0.0.1',
+            '::1',
+            // Добавьте IP вашего прокси-сервера если он внешний
+            // Для CloudFlare раскомментируйте и добавьте их IP ranges
+        ];
+
+        // Если запрос НЕ от доверенного прокси - используем REMOTE_ADDR напрямую
+        if (!in_array($remoteAddr, $trustedProxies)) {
+            return filter_var($remoteAddr, FILTER_VALIDATE_IP) ? $remoteAddr : '0.0.0.0';
         }
 
-        return trim($ip);
+        // Запрос от доверенного прокси (Nginx) - проверяем X-Forwarded-For
+        if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+            $ips = array_map('trim', explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']));
+            $clientIp = $ips[0]; // Первый IP в цепочке = реальный клиент
+
+            // Валидация IP-адреса
+            if (filter_var($clientIp, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
+                return $clientIp;
+            }
+        }
+
+        // Fallback на REMOTE_ADDR
+        return filter_var($remoteAddr, FILTER_VALIDATE_IP) ? $remoteAddr : '0.0.0.0';
     }
 
     /**

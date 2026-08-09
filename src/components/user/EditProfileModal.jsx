@@ -1,8 +1,8 @@
 import React, { useState, useRef } from 'react';
 import ReactDOM from 'react-dom';
-import { authAPI } from '../api/api';
-import { useAuth } from '../context/AuthContext';
-import '../styles/EditProfileModal.css';
+import { authAPI } from '@/api/api';
+import { useAuth } from '@/context/AuthContext';
+import './EditProfileModal.css';
 
 const EditProfileModal = ({ user, onClose, onSave }) => {
   const { t } = useAuth();

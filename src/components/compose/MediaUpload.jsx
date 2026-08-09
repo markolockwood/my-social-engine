@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useUpload } from '../context/UploadContext';
-import { postsAPI } from '../api/api';
-import { CrossTabSync } from '../utils/crossTabSync';
-import '../styles/MediaUpload.css';
+import { useUpload } from '@/context/UploadContext';
+import { postsAPI } from '@/api/api';
+import { CrossTabSync } from '@/utils/crossTabSync';
+import './MediaUpload.css';
 
 /**
  * Все медиа (изображения, GIF, видео) загружаются на сервер НЕМЕДЛЕННО при прикреплении.

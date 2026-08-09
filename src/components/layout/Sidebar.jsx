@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import '../styles/Sidebar.css';
+import { useAuth } from '@/context/AuthContext';
+import './Sidebar.css';
 
 const Sidebar = () => {
   const { user, logout, theme, toggleTheme, language, changeLanguage, t } = useAuth();

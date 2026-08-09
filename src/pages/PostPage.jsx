@@ -3,13 +3,13 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { postsAPI } from '../api/api';
 import { useAuth } from '../context/AuthContext';
 import { usePostsContext } from '../context/PostsContext';
-import Post from '../components/Post';
-import QuotedPost from '../components/QuotedPost';
-import PostMedia from '../components/PostMedia';
-import ComposeReplyModal from '../components/ComposeReplyModal';
-import ComposeWidget from '../components/ComposeWidget';
-import RepliesSortDropdown from '../components/RepliesSortDropdown';
-import '../styles/PostPage.css';
+import Post from '@/components/post/Post';
+import QuotedPost from '@/components/post/QuotedPost';
+import PostMedia from '@/components/post/PostMedia';
+import ComposeReplyModal from '@/components/compose/ComposeReplyModal';
+import ComposeWidget from '@/components/compose/ComposeWidget';
+import RepliesSortDropdown from '@/components/post/RepliesSortDropdown';
+import './PostPage.css';
 
 /**
  * Детальная страница поста

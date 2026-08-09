@@ -4,11 +4,14 @@ require_once __DIR__ . '/../classes/Database.php';
 require_once __DIR__ . '/../classes/User.php';
 require_once __DIR__ . '/../classes/Post.php';
 require_once __DIR__ . '/../middleware/AuthMiddleware.php';
+require_once __DIR__ . '/../helpers/FileValidator.php';
+require_once __DIR__ . '/../config/FileUploadConfig.php';
+require_once __DIR__ . '/BaseController.php';
 
 /**
  * Контроллер для работы с пользователями
  */
-class UserController {
+class UserController extends BaseController {
 
     /**
      * GET /users/{username} — профиль пользователя
@@ -126,7 +129,8 @@ class UserController {
 
         if ($existing) {
             http_response_code(400);
-            echo json_encode(['error' => 'Username is already taken']);
+            // Обобщенное сообщение - защита от user enumeration
+            echo json_encode(['error' => 'Username change failed']);
             exit();
         }
 
@@ -166,9 +170,20 @@ class UserController {
 
         $gender = trim($input['gender'] ?? '');
 
-        if (strlen($gender) > 16) {
+        // Пустое значение разрешено (опциональное поле)
+        if ($gender === '') {
+            $db = Database::getInstance();
+            $db->query("UPDATE users SET gender = NULL, updated_at = NOW() WHERE id = ?", [$authUser['userId']]);
+            $this->sendResponse(['gender' => null]);
+            return;
+        }
+
+        // Whitelist разрешенных значений для защиты от инъекций
+        $allowedGenders = ['Male', 'Female', 'Non-binary', 'Other', 'Prefer not to say'];
+
+        if (!in_array($gender, $allowedGenders)) {
             http_response_code(400);
-            echo json_encode(['error' => 'Gender must be 16 characters or less']);
+            echo json_encode(['error' => 'Invalid gender value']);
             exit();
         }
 
@@ -179,18 +194,49 @@ class UserController {
     }
 
     /**
-     * Определение страны по IP (упрощённая версия)
+     * Определение страны по IP через бесплатный API
      */
     private function getCountryByIP($ip) {
-        if (!$ip) return null;
-
-        // Простая проверка для примера (в реальности нужен GeoIP сервис)
-        // Для российских IP-адресов
-        if (preg_match('/^(85\.|176\.|178\.|188\.|5\.)/', $ip)) {
-            return 'Russia';
+        if (!$ip || $ip === '127.0.0.1' || $ip === '::1') {
+            return null;
         }
 
-        return null;
+        // Валидация IP
+        if (!filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
+            return null;
+        }
+
+        try {
+            // ip-api.com - 45 запросов/минуту бесплатно (без ключа)
+            // Альтернативы: ipapi.co, ipwhois.app, freegeoip.app
+            $url = "http://ip-api.com/json/{$ip}?fields=country";
+
+            $context = stream_context_create([
+                'http' => [
+                    'timeout' => 3, // Таймаут 3 секунды
+                    'ignore_errors' => true
+                ]
+            ]);
+
+            $response = @file_get_contents($url, false, $context);
+
+            if ($response === false) {
+                error_log("GeoIP API request failed for IP: {$ip}");
+                return null;
+            }
+
+            $data = json_decode($response, true);
+
+            if (isset($data['country']) && !empty($data['country'])) {
+                return $data['country'];
+            }
+
+            return null;
+
+        } catch (Exception $e) {
+            error_log("GeoIP API error: " . $e->getMessage());
+            return null;
+        }
     }
 
     /**
@@ -288,7 +334,7 @@ class UserController {
         }
 
         $file = $_FILES['avatar'];
-        $allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        $allowedTypes = FileUploadConfig::getAllowedMimes('avatar');
 
         // Проверка MIME типа через file content
         $finfo = finfo_open(FILEINFO_MIME_TYPE);
@@ -302,14 +348,15 @@ class UserController {
         }
 
         // Проверка размера (макс 5MB)
-        if ($file['size'] > 5 * 1024 * 1024) {
+        $maxSize = FileUploadConfig::getMaxSize('avatar');
+        if ($file['size'] > $maxSize) {
             http_response_code(400);
             echo json_encode(['error' => 'File too large (max 5MB)']);
             exit();
         }
 
         $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-        $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+        $allowedExtensions = FileUploadConfig::getAllowedExtensions('avatar');
 
         if (!in_array($ext, $allowedExtensions)) {
             http_response_code(400);
@@ -318,17 +365,20 @@ class UserController {
         }
 
         $filename = 'avatar_' . $authUser['userId'] . '_' . time() . '.' . $ext;
-        $uploadDir = __DIR__ . '/../../uploads/avatars/';
-
-        // Создание директории если не существует
-        if (!is_dir($uploadDir)) {
-            mkdir($uploadDir, 0755, true);
-        }
+        $uploadDir = FileUploadConfig::getUploadDir('avatars');
 
         // Сохранение файла
         if (!move_uploaded_file($file['tmp_name'], $uploadDir . $filename)) {
             http_response_code(500);
             echo json_encode(['error' => 'Failed to save file']);
+            exit();
+        }
+
+        // Дополнительная проверка файла после загрузки (magic bytes)
+        if (!FileValidator::isValidImage($uploadDir . $filename)) {
+            unlink($uploadDir . $filename); // Удаляем подделку
+            http_response_code(400);
+            echo json_encode(['error' => 'Invalid image file detected']);
             exit();
         }
 
@@ -401,21 +451,5 @@ class UserController {
         $following = $user->getFollowing($targetUser['id'], $limit, $offset, $currentUserId);
 
         $this->sendResponse(['following' => $following]);
-    }
-
-    /**
-     * Получение JSON из тела запроса
-     */
-    private function getInput() {
-        return json_decode(file_get_contents('php://input'), true) ?? [];
-    }
-
-    /**
-     * Отправка успешного ответа
-     */
-    private function sendResponse($data, $statusCode = 200) {
-        http_response_code($statusCode);
-        echo json_encode($data);
-        exit();
     }
 }

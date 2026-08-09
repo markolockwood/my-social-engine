@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '@/context/AuthContext';
 import VideoPlayer from './VideoPlayer';
 import MediaLightbox from './MediaLightbox';
-import '../styles/PostMedia.css';
+import './PostMedia.css';
 
 const formatTime = (seconds) => {
   if (!seconds || isNaN(seconds) || seconds < 0) return '0:00';
