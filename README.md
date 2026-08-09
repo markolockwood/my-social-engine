@@ -169,18 +169,23 @@ return [
     'database' => [
         'host' => 'localhost',
         'port' => '5432',
-        'dbname' => 'your_database',
+        'dbname' => 'ваша_база',
         'username' => 'postgres',
-        'password' => 'your_password',
+        'password' => 'ваш_пароль',
         'charset' => 'utf8'
     ],
     'jwt' => [
-        'secret' => 'create_a_strong_secret_key',
-        'expiration' => 86400 * 7 // 7 days
+        'secret' => 'придумайте_надёжный_секретный_ключ',
+        'expiration' => 86400 * 7 // 7 дней
     ],
     'ffmpeg' => [
         'binary' => '/usr/bin/ffmpeg',
         'ffprobe' => '/usr/bin/ffprobe'
+    ],
+    'redis' => [
+        'host' => '127.0.0.1',
+        'port' => 6379,
+        'timeout' => 1.0
     ]
 ];
 ```
