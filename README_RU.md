@@ -162,33 +162,7 @@ php -m | grep redis   # должен вывести "redis"
 
 ### 4. Настройка конфигурации приложения
 
-Отредактируйте файл `config/config.php`:
-
-```php
-return [
-    'database' => [
-        'host' => 'localhost',
-        'port' => '5432',
-        'dbname' => 'ваша_база',
-        'username' => 'postgres',
-        'password' => 'ваш_пароль',
-        'charset' => 'utf8'
-    ],
-    'jwt' => [
-        'secret' => 'придумайте_надёжный_секретный_ключ',
-        'expiration' => 86400 * 7 // 7 дней
-    ],
-    'ffmpeg' => [
-        'binary' => '/usr/bin/ffmpeg',
-        'ffprobe' => '/usr/bin/ffprobe'
-    ],
-    'redis' => [
-        'host' => '127.0.0.1',
-        'port' => 6379,
-        'timeout' => 1.0
-    ]
-];
-```
+Отредактируйте файл [`config/config.php`](config/config.php):
 
 ### 5. Настройка веб-сервера (Nginx)
 

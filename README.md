@@ -162,33 +162,7 @@ If PHP was not installed through your system's package manager (common with cont
 
 ### 4. Application Configuration
 
-Edit `config/config.php` file:
-
-```php
-return [
-    'database' => [
-        'host' => 'localhost',
-        'port' => '5432',
-        'dbname' => 'ваша_база',
-        'username' => 'postgres',
-        'password' => 'ваш_пароль',
-        'charset' => 'utf8'
-    ],
-    'jwt' => [
-        'secret' => 'придумайте_надёжный_секретный_ключ',
-        'expiration' => 86400 * 7 // 7 дней
-    ],
-    'ffmpeg' => [
-        'binary' => '/usr/bin/ffmpeg',
-        'ffprobe' => '/usr/bin/ffprobe'
-    ],
-    'redis' => [
-        'host' => '127.0.0.1',
-        'port' => 6379,
-        'timeout' => 1.0
-    ]
-];
-```
+Edit [`config/config.php`](config/config.php) file:
 
 ### 5. Web Server Setup (Nginx)
 
