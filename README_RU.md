@@ -322,8 +322,8 @@ your-project/
 ```
 ## Документация
 
-- [API Endpoints](docs/api_endpoints.md)
-- [Архитектура постов и ответов](docs/posts_architecture.md)
+- [API Endpoints](docs/ru/api_endpoints_ru.md)
+- [Архитектура постов и ответов](docs/ru/posts_architecture_ru.md)
 
 ## Следующие шаги (TODO)
 

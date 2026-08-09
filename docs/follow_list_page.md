@@ -1,96 +1,96 @@
-# Страница просмотра подписчиков и подписок
+# Followers and Following List Page
 
-## Обзор
+## Overview
 
-Реализована страница для просмотра списков подписчиков и подписок пользователя с табами, infinite scroll и возможностью подписки/отписки прямо из списка.
+A page has been implemented for viewing a user's followers and following lists, with tabs, infinite scroll, and the ability to follow/unfollow directly from the list.
 
-## Маршрутизация
+## Routing
 
-### Новый роут
-- `GET /profile/:username/:tab` - страница списка подписчиков/подписок
-  - `:username` - имя пользователя
-  - `:tab` - `followers` или `following`
+### New route
+- `GET /profile/:username/:tab` - followers/following list page
+  - `:username` - the username
+  - `:tab` - `followers` or `following`
 
-### Примеры URL
-- `/profile/john/followers` - подписчики пользователя john
-- `/profile/john/following` - подписки пользователя john
+### Example URLs
+- `/profile/john/followers` - john's followers
+- `/profile/john/following` - who john follows
 
-## Компоненты
+## Components
 
-### 1. FollowList.jsx (страница)
+### 1. FollowList.jsx (page)
 
-Основная страница со списками подписчиков/подписок.
+The main page with followers/following lists.
 
-**Возможности:**
-- Табы для переключения между Followers и Following
-- Кнопка "Назад" для возврата к профилю
-- Infinite scroll с загрузкой по частям:
-  - Первая загрузка: 40 пользователей
-  - Последующие: по 30 пользователей при скролле
-- Intersection Observer для автоматической подгрузки
-- Обработка состояний: loading, error, empty
+**Features:**
+- Tabs to switch between Followers and Following
+- "Back" button to return to the profile
+- Infinite scroll loaded in chunks:
+  - Initial load: 40 users
+  - Subsequent loads: 30 users on scroll
+- Intersection Observer for automatic loading
+- Handles loading, error, and empty states
 
-**Структура:**
+**Structure:**
 ```jsx
 <FollowList>
-  - Header (имя пользователя, кнопка назад)
+  - Header (username, back button)
   - Tabs (Followers / Following)
-  - Список UserCard компонентов
-  - Loader для подгрузки
+  - List of UserCard components
+  - Loader for pagination
 </FollowList>
 ```
 
-### 2. UserCard.jsx (компонент)
+### 2. UserCard.jsx (component)
 
-Карточка пользователя в списке.
+A user card in the list.
 
-**Содержимое:**
-- Аватар (кликабельный, ведет на профиль)
-- Имя и username (кликабельные)
-- Bio (если есть, обрезается до 2 строк)
-- Кнопка Follow/Unfollow (если не свой профиль)
+**Content:**
+- Avatar (clickable, links to profile)
+- Name and username (clickable)
+- Bio (if present, truncated to 2 lines)
+- Follow/Unfollow button (if not your own profile)
 
-**Возможности:**
-- Hover эффекты на всей карточке
-- Кнопка Follow меняется на Unfollow с красным оттенком при наведении
-- Callback `onFollowChange` для обновления состояния в родителе
+**Features:**
+- Hover effects on the whole card
+- Follow button turns into Unfollow with a red tint on hover
+- `onFollowChange` callback to update state in the parent
 
-## Логика Infinite Scroll
+## Infinite Scroll Logic
 
 ```javascript
-// Первая загрузка при открытии страницы
+// Initial load when the page opens
 loadUsers(true) -> limit: 40, offset: 0
 
-// При скролле до конца
+// When scrolling to the end
 IntersectionObserver triggers -> loadUsers(false) -> limit: 30, offset: 40
 
-// Следующая загрузка
+// Next load
 loadUsers(false) -> limit: 30, offset: 70
 
-// Прекращение загрузки когда получено меньше чем запрошено
+// Stop loading when fewer results are returned than requested
 if (newUsers.length < limit) {
   setHasMore(false);
 }
 ```
 
-## Обновления в существующих компонентах
+## Updates to existing components
 
 ### Profile.jsx
 
-Счетчики подписчиков теперь кликабельные:
+Follow counters are now clickable:
 
 ```jsx
 <Link to={`/profile/${username}/following`}>
-  <b>{following_count}</b> читаемых
+  <b>{following_count}</b> Following
 </Link>
 <Link to={`/profile/${username}/followers`}>
-  <b>{followers_count}</b> читателей
+  <b>{followers_count}</b> Followers
 </Link>
 ```
 
 ### App.jsx
 
-Добавлен новый роут:
+A new route was added:
 
 ```jsx
 <Route path="/profile/:username/:tab" element={
@@ -100,30 +100,30 @@ if (newUsers.length < limit) {
 } />
 ```
 
-## Стили
+## Styles
 
 ### UserCard.css
 
-- `.user-card` - контейнер карточки с hover эффектом
-- `.user-card-avatar` - круглый аватар 48x48px
-- `.user-card-info` - информация о пользователе
-- `.user-card-follow-btn` - кнопка подписки со всеми состояниями
-- Адаптивность для мобильных устройств
+- `.user-card` - card container with hover effect
+- `.user-card-avatar` - round 48x48px avatar
+- `.user-card-info` - user information
+- `.user-card-follow-btn` - follow button with all states
+- Responsive for mobile devices
 
 ### FollowList.css
 
-- `.follow-list-tabs` - табы с индикатором активного
-- `.back-button` - круглая кнопка возврата
-- `.load-more-trigger` - триггер для infinite scroll
-- Активный таб с подчеркиванием снизу (синяя линия)
+- `.follow-list-tabs` - tabs with an active indicator
+- `.back-button` - round back button
+- `.load-more-trigger` - infinite scroll trigger
+- Active tab underlined (blue line)
 
-### Profile.css (обновлено)
+### Profile.css (updated)
 
-- `.profile-stat-link` - кликабельные счетчики с hover эффектом
+- `.profile-stat-link` - clickable counters with hover effect
 
-## Переводы
+## Translations
 
-### Английский (en.json)
+### English (en.json)
 ```json
 {
   "follow_list": {
@@ -138,7 +138,7 @@ if (newUsers.length < limit) {
 }
 ```
 
-### Русский (ru.json)
+### Russian (ru.json)
 ```json
 {
   "follow_list": {
@@ -153,24 +153,24 @@ if (newUsers.length < limit) {
 }
 ```
 
-## Backend API (используется существующий)
+## Backend API (existing, reused)
 
 - `GET /api/users/:username/followers?limit=40&offset=0`
 - `GET /api/users/:username/following?limit=30&offset=40`
 - `POST /api/users/:username/follow`
 - `DELETE /api/users/:username/follow`
 
-## UX особенности
+## UX details
 
-1. **Плавная загрузка** - loader появляется внизу списка при подгрузке
-2. **Оптимистичные обновления** - UI обновляется сразу при клике на Follow
-3. **Состояние подписки** - кнопка отражает текущее состояние
-4. **Навигация** - легко вернуться к профилю или перейти на профиль из карточки
-5. **Responsive** - адаптируется под мобильные устройства
+1. **Smooth loading** - a loader appears at the bottom of the list while paginating
+2. **Optimistic updates** - the UI updates immediately on Follow click
+3. **Follow state** - the button reflects the current state
+4. **Navigation** - easy to go back to the profile or jump to a profile from a card
+5. **Responsive** - adapts to mobile devices
 
-## Производительность
+## Performance
 
-- **Virtualization не используется** - для списков до нескольких сотен пользователей нативный скролл работает хорошо
-- **Intersection Observer** - нативный API браузера, эффективный
-- **Мемоизация не требуется** - компоненты легковесные
-- **Ленивая загрузка** - загружаются только видимые пользователи + небольшой буфер
+- **No virtualization** - native scrolling works fine for lists of up to a few hundred users
+- **Intersection Observer** - a native, efficient browser API
+- **No memoization needed** - components are lightweight
+- **Lazy loading** - only visible users plus a small buffer are loaded

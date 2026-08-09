@@ -1,132 +1,132 @@
-# Архитектура постов и ответов
+# Post and Reply Architecture
 
-Система использует **вложенные посты** вместо отдельной таблицы комментариев.
+The system uses **nested posts** instead of a separate comments table.
 
-## Поля
+## Fields
 
-- `parent_id` — ссылка на родительский пост (null для оригинальных)
-- `is_quick_reply` — тип ответа (быстрый или thread)
+- `parent_id` — reference to the parent post (null for original posts)
+- `is_quick_reply` — reply type (quick or thread)
 
-## Типы постов
+## Post types
 
-**Оригинальный пост** — `parent_id IS NULL`
-- Отображается в ленте и в табе "Посты" автора
+**Original post** — `parent_id IS NULL`
+- Shown in the feed and in the author's "Posts" tab
 
-**Быстрый ответ** — `parent_id IS NOT NULL`, `is_quick_reply = true`
-- Создаётся через модал (кнопка 💬) или `ComposeWidget` в ленте
-- Отображается в табе "Посты" автора с цитируемой карточкой родителя
-- Показывается в ленте новостей
-- Цитируемая карточка (`QuotedPost`) отображает изображения родителя
+**Quick reply** — `parent_id IS NOT NULL`, `is_quick_reply = true`
+- Created via the modal (💬 button) or the `ComposeWidget` in the feed
+- Shown in the author's "Posts" tab with a quoted card of the parent
+- Shown in the news feed
+- The quoted card (`QuotedPost`) displays the parent's images
 
-**Ответ в треде** — `parent_id IS NOT NULL`, `is_quick_reply = false`
-- Создаётся через `ComposeWidget` на странице поста или в правой панели лайтбокса
-- Отображается только в табе "Ответы" автора
-- НЕ показывается в ленте
+**Thread reply** — `parent_id IS NOT NULL`, `is_quick_reply = false`
+- Created via `ComposeWidget` on the post page or in the lightbox's right panel
+- Shown only in the author's "Replies" tab
+- NOT shown in the feed
 
-## Медиафайлы
+## Media files
 
-Медиафайлы (изображения, GIF, видео) хранятся в таблице `post_media`:
+Media files (images, GIFs, videos) are stored in the `post_media` table:
 
-| Колонка в БД | Тип | Описание |
+| DB column | Type | Description |
 |---|---|---|
 | `id` | serial | PK |
 | `post_id` | int | FK → posts.id (CASCADE DELETE) |
-| `media_url` | varchar(255) | Путь к файлу (изображения: `/uploads/posts/`, GIF: `/uploads/gifs/`, видео: `/uploads/videos/`) |
-| `thumb_url` | varchar(255) | Миниатюра (для изображений: 600px, для видео: превью первого кадра) |
-| `media_type` | varchar(20) | Тип медиа: `image`, `gif`, `video` |
-| `display_order` | int | Порядок отображения (0–3) |
+| `media_url` | varchar(255) | File path (images: `/uploads/posts/`, GIFs: `/uploads/gifs/`, videos: `/uploads/videos/`) |
+| `thumb_url` | varchar(255) | Thumbnail (600px for images, first-frame preview for videos) |
+| `media_type` | varchar(20) | Media type: `image`, `gif`, `video` |
+| `display_order` | int | Display order (0–3) |
 
-`Post::attachMedia()` маппит эти колонки в укороченные ключи API-ответа: `url`, `thumb`, `type`, `order` (см. [api/classes/Post.php](../api/classes/Post.php)).
+`Post::attachMedia()` maps these columns to the API response's shortened keys: `url`, `thumb`, `type`, `order` (see [api/classes/Post.php](../api/classes/Post.php)).
 
-### Ограничения и обработка
+### Limits and processing
 
-Максимум 4 медиа любого типа из перечисленных.
+Maximum of 4 media items of the types listed below.
 
-- **Изображения**: JPEG/PNG/WEBP, до 5MB каждое
-  - Автоматическое создание thumbnail 600px для экономии трафика в ленте
-  - **Magic bytes проверка** через `FileValidator::isValidImage()` для защиты от поддельных файлов
-- **GIF**: до 10MB
-  - Автоматическая конвертация в MP4 через FFmpeg (экономия ~96% размера)
-  - **Безопасная конвертация** через `proc_open()` с массивом аргументов (защита от command injection)
-  - **Magic bytes проверка** через `FileValidator::isValidGif()`
-- **Видео**: MP4/WebM/AVI/MOV/MPEG, до 100MB
-  - HLS-конвертация через FFmpeg с множественными уровнями качества (360p, 720p, 1080p)
-  - Генерация превью из первого кадра
-  - Конвертация в H.264 (видео) + AAC (аудио) для кросс-браузерной совместимости
-  - **PID сохранение** в БД для возможности отмены конвертации (кроссплатформенно)
+- **Images**: JPEG/PNG/WEBP, up to 5MB each
+  - Automatic 600px thumbnail generation to save bandwidth in the feed
+  - **Magic bytes verification** via `FileValidator::isValidImage()` to guard against forged files
+- **GIF**: up to 10MB
+  - Automatic conversion to MP4 via FFmpeg (~96% size savings)
+  - **Safe conversion** via `proc_open()` with an argument array (command injection protection)
+  - **Magic bytes verification** via `FileValidator::isValidGif()`
+- **Video**: MP4/WebM/AVI/MOV/MPEG, up to 100MB
+  - HLS conversion via FFmpeg with multiple quality levels (360p, 720p, 1080p)
+  - First-frame preview generation
+  - Converted to H.264 (video) + AAC (audio) for cross-browser compatibility
+  - **PID is saved** to the DB so the conversion can be cancelled (cross-platform)
 
-### Безопасность загрузки
+### Upload security
 
-**Валидация файлов:**
-- Проверка MIME type через `finfo_file()`
-- Проверка magic bytes (первые байты файла) через `FileValidator`
-- Проверка через `getimagesize()` для изображений
-- Централизованная конфигурация через `FileUploadConfig`
+**File validation:**
+- MIME type check via `finfo_file()`
+- Magic bytes check (first bytes of the file) via `FileValidator`
+- `getimagesize()` check for images
+- Centralized configuration via `FileUploadConfig`
 
-**Защита от атак:**
-- **Path traversal**: все пути проверяются через `realpath()`
-- **Command injection**: FFmpeg вызывается через `proc_open()` с массивом
-- **CSRF**: Origin/Referer проверка для всех POST запросов
-- **Rate limiting**: защита от IP spoofing через whitelist прокси
+**Attack protection:**
+- **Path traversal**: all paths are validated via `realpath()`
+- **Command injection**: FFmpeg is invoked via `proc_open()` with an argument array
+- **CSRF**: Origin/Referer check for all POST requests
+- **Rate limiting**: protection against IP spoofing via a proxy whitelist
 
-**Кроссплатформенная отмена загрузки:**
-- PID процесса FFmpeg сохраняется в `temp_uploads.process_pid`
-- Windows: убийство через `taskkill /F /PID <pid>`
-- Linux: убийство через `kill -9 <pid>`
-- Fallback на `pkill -f` если PID отсутствует
+**Cross-platform upload cancellation:**
+- FFmpeg's process PID is saved to `temp_uploads.process_pid`
+- Windows: terminated via `taskkill /F /PID <pid>`
+- Linux: terminated via `kill -9 <pid>`
+- Falls back to `pkill -f` if no PID is available
 
 ### API endpoints
 
-- `POST /api/upload/post-images` — загрузка изображений (возвращает `[{url, thumb, type: 'image'}]`)
-- `POST /api/upload/post-gif` — загрузка GIF с автоконвертацией в MP4 (возвращает `{url, type: 'gif'}`)
-- `POST /api/upload/post-video` — загрузка видео с HLS-конвертацией (возвращает `{url, thumb, type: 'video'}`)
-- `DELETE /api/upload/media` — удаление медиафайла с сервера (проверяет владельца, path traversal защита)
-- `DELETE /api/upload/cancel` — отмена загрузки по tracking_id (убивает FFmpeg процесс по PID)
+- `POST /api/upload/post-images` — upload images (returns `[{url, thumb, type: 'image'}]`)
+- `POST /api/upload/post-gif` — upload a GIF with auto-conversion to MP4 (returns `{url, type: 'gif'}`)
+- `POST /api/upload/post-video` — upload a video with HLS conversion (returns `{url, thumb, type: 'video'}`)
+- `DELETE /api/upload/media` — delete a media file from the server (checks ownership, path traversal protection)
+- `DELETE /api/upload/cancel` — cancel an upload by tracking_id (terminates the FFmpeg process by PID)
 
-### Временные загрузки
+### Temporary uploads
 
-Таблица `temp_uploads` отслеживает неиспользованные медиафайлы:
-- Все загруженные медиа регистрируются как временные через `TempUploadsHelper`
-- Лимит: максимум 4 медиафайла одновременно (блокировка через `pg_advisory_lock`)
-- При создании поста удаляются из `temp_uploads`
-- Cron-задача очищает файлы старше 6 часов (см. [cleanup_temp_uploads.php](../cleanup_temp_uploads.php))
-- Cleanup при размонтировании `ComposeWidget` для комментариев
-- Колонка `process_pid` для отслеживания PID процессов конвертации
+The `temp_uploads` table tracks unused media files:
+- All uploaded media is registered as temporary via `TempUploadsHelper`
+- Limit: maximum of 4 media files at once (locked via `pg_advisory_lock`)
+- Removed from `temp_uploads` when a post is created
+- A cron job cleans up files older than 6 hours (see [cleanup_temp_uploads.php](../cleanup_temp_uploads.php))
+- Cleanup happens when `ComposeWidget` unmounts for comments
+- The `process_pid` column tracks conversion process PIDs
 
-### Отображение
+### Display
 
-- **Лента постов**: миниатюры (thumb) для изображений и видео, autoplay для GIF
-- **Лайтбокс (MediaLightbox)**: полноразмерные изображения, VideoPlayer с HLS для видео
-- **Цитируемые посты (QuotedPost)**: миниатюры, бейджи "GIF"/"VIDEO"
+- **Post feed**: thumbnails for images and videos, autoplay for GIFs
+- **Lightbox (MediaLightbox)**: full-size images, VideoPlayer with HLS for videos
+- **Quoted posts (QuotedPost)**: thumbnails, "GIF"/"VIDEO" badges
 
 ### VideoPlayer
 
-Кастомный видеоплеер с поддержкой:
-- HLS.js для адаптивного стриминга
-- Play/pause, timeline, перемотка
-- Draggable слайдер громкости (сохранение в `users.video_volume`)
-- Переключение качества (Auto, 360p, 720p, 1080p)
-- Скорость воспроизведения (0.25x - 2x)
-- Двухуровневое меню настроек (⚙️)
-- Мультиязычность (EN/RU)
+A custom video player supporting:
+- HLS.js for adaptive streaming
+- Play/pause, timeline, seeking
+- Draggable volume slider (saved to `users.video_volume`)
+- Quality switching (Auto, 360p, 720p, 1080p)
+- Playback speed (0.25x - 2x)
+- Two-tier settings menu (⚙️)
+- Multi-language support (EN/RU)
 
-## Логика выборок
+## Query logic
 
-| Запрос | Что возвращает |
+| Request | What it returns |
 |---|---|
-| Лента `GET /api/posts` | `parent_id IS NULL` ИЛИ `is_quick_reply = true` |
-| Профиль "Посты" | Оригинальные посты + быстрые ответы автора |
-| Профиль "Ответы" | Thread replies на чужие твиты (без самоответов) |
-| Ответы к посту `GET /api/posts/:id/replies` | Все посты с `parent_id = :id` |
+| Feed `GET /api/posts` | `parent_id IS NULL` OR `is_quick_reply = true` |
+| Profile "Posts" | Original posts + author's quick replies |
+| Profile "Replies" | Thread replies to other users' tweets (self-replies excluded) |
+| Post replies `GET /api/posts/:id/replies` | All posts with `parent_id = :id` |
 
-## Детальная страница поста
+## Post detail page
 
-- Если пост — быстрый ответ, внутри показывается quoted post родителя (с изображениями)
-- Если пост — thread reply, родитель сверху не показывается
-- Просмотр засчитывается через `POST /api/posts/{id}/view` с дедупликацией по сессии (3 часа через Redis) — повторное открытие того же поста тем же пользователем/IP в этом окне не увеличивает счётчик. Тот же механизм используется для просмотров в ленте (см. `Post.jsx`, `IntersectionObserver` с порогом видимости 50% и задержкой 3 сек)
+- If the post is a quick reply, the quoted parent post is shown inside it (with images)
+- If the post is a thread reply, the parent is not shown above it
+- A view is registered via `POST /api/posts/{id}/view` with per-session deduplication (3 hours via Redis) — reopening the same post as the same user/IP within that window doesn't increment the counter. The same mechanism is used for feed views (see `Post.jsx`, `IntersectionObserver` with a 50% visibility threshold and a 3-second delay)
 
-## Динамическое обновление
+## Live updates
 
-- **Лента (Home)**: polling каждые 30 сек; новые посты не вставляются автоматически — появляется кнопка «Показать N постов»
-- **Страница поста**: polling каждые 20 сек; новые ответы добавляются в конец списка автоматически
-- Оба механизма работают через повторные запросы к существующим API-эндпоинтам без WebSocket
+- **Feed (Home)**: polling every 30 sec; new posts are not inserted automatically — a "Show N posts" button appears
+- **Post page**: polling every 20 sec; new replies are appended to the list automatically
+- Both mechanisms work through repeated requests to existing API endpoints without WebSockets

@@ -1,12 +1,12 @@
-# Система подписок (Follow System)
+# Follow System
 
-## Обзор
+## Overview
 
-Реализована полноценная система подписок, аналогичная Twitter, с кнопками Follow/Unfollow на страницах профилей и отображением счетчиков подписчиков и подписок.
+A full-featured follow system has been implemented, similar to Twitter, with Follow/Unfollow buttons on profile pages and display of follower/following counts.
 
-## База данных
+## Database
 
-Таблица `follows` уже существовала в schema.sql:
+The `follows` table already existed in schema.sql:
 
 ```sql
 CREATE TABLE IF NOT EXISTS follows (
@@ -21,28 +21,28 @@ CREATE TABLE IF NOT EXISTS follows (
 
 ## Backend API (PHP)
 
-### Новые методы в User.php
+### New methods in User.php
 
-- `follow($followerId, $followingId)` - Подписка на пользователя
-- `unfollow($followerId, $followingId)` - Отписка от пользователя
-- `isFollowing($followerId, $followingId)` - Проверка статуса подписки
-- `getFollowers($userId, $limit, $offset)` - Список подписчиков
-- `getFollowing($userId, $limit, $offset)` - Список подписок
+- `follow($followerId, $followingId)` - Follow a user
+- `unfollow($followerId, $followingId)` - Unfollow a user
+- `isFollowing($followerId, $followingId)` - Check follow status
+- `getFollowers($userId, $limit, $offset)` - List of followers
+- `getFollowing($userId, $limit, $offset)` - List of who the user follows
 
-### Новые endpoints в UserController.php
+### New endpoints in UserController.php
 
-- `POST /api/users/{username}/follow` - Подписаться на пользователя
-- `DELETE /api/users/{username}/follow` - Отписаться от пользователя
-- `GET /api/users/{username}/followers` - Получить список подписчиков
-- `GET /api/users/{username}/following` - Получить список подписок
+- `POST /api/users/{username}/follow` - Follow a user
+- `DELETE /api/users/{username}/follow` - Unfollow a user
+- `GET /api/users/{username}/followers` - Get the list of followers
+- `GET /api/users/{username}/following` - Get the list of following
 
-### Обновленные endpoints
+### Updated endpoints
 
-- `GET /api/users/{username}` - Теперь возвращает `is_following` (true/false) для авторизованного пользователя
+- `GET /api/users/{username}` - Now returns `is_following` (true/false) for the authenticated user
 
 ## Frontend API (React)
 
-### Новые методы в usersAPI (src/api/api.js)
+### New methods in usersAPI (src/api/api.js)
 
 ```javascript
 follow: (username) => api.post(`/users/${username}/follow`)
@@ -51,75 +51,75 @@ getFollowers: (username, limit, offset) => api.get(`/users/${username}/followers
 getFollowing: (username, limit, offset) => api.get(`/users/${username}/following?limit=${limit}&offset=${offset}`)
 ```
 
-## UI компоненты
+## UI Components
 
-### Страница профиля (Profile.jsx)
+### Profile page (Profile.jsx)
 
-Обновлена для отображения:
+Updated to display:
 
-1. **Кнопка Follow/Unfollow**
-   - Показывается для чужих профилей (не для своего)
-   - Меняет текст в зависимости от статуса подписки
-   - При наведении на "Following" меняется на "Unfollow" с красным цветом
-   - Автоматически обновляет счетчик подписчиков при клике
+1. **Follow/Unfollow button**
+   - Shown on other users' profiles (not on your own)
+   - Text changes depending on follow status
+   - Hovering over "Following" changes it to "Unfollow" with red styling
+   - Automatically updates the follower count on click
 
-2. **Счетчики подписок**
-   - `following_count` - количество подписок пользователя
-   - `followers_count` - количество подписчиков
-   - Автоматически обновляются при follow/unfollow
+2. **Follow counters**
+   - `following_count` - number of accounts the user follows
+   - `followers_count` - number of followers
+   - Automatically updated on follow/unfollow
 
-### Стили (Profile.css)
+### Styles (Profile.css)
 
-Добавлены стили для кнопки подписки:
+Styles added for the follow button:
 
-- `.profile-follow-btn` - основная кнопка Follow (черный фон, белый текст)
-- `.profile-follow-btn.following` - состояние "Подписан" (прозрачный фон, обводка)
-- `.profile-follow-btn.following:hover` - при наведении показывает красный цвет для Unfollow
+- `.profile-follow-btn` - main Follow button (black background, white text)
+- `.profile-follow-btn.following` - "Following" state (transparent background, outline)
+- `.profile-follow-btn.following:hover` - shows red color for Unfollow on hover
 
-## Переводы
+## Translations
 
-### Английский (en.json)
+### English (en.json)
 ```json
 "follow": "Follow",
 "unfollow": "Unfollow",
 "follow_error": "Failed to update follow status"
 ```
 
-### Русский (ru.json)
+### Russian (ru.json)
 ```json
 "follow": "Подписаться",
 "unfollow": "Отписаться",
 "follow_error": "Ошибка при изменении подписки"
 ```
 
-## Безопасность
+## Security
 
-1. **Защита от подписки на самого себя** - проверка в `User::follow()`
-2. **Проверка существования пользователей** - валидация перед созданием подписки
-3. **Уникальность подписок** - constraint `UNIQUE(follower_id, following_id)` в БД
-4. **Каскадное удаление** - при удалении пользователя автоматически удаляются связанные подписки
-5. **Авторизация** - все endpoints требуют JWT токен через `AuthMiddleware::requireAuth()`
+1. **Protection against self-following** - checked in `User::follow()`
+2. **User existence check** - validated before creating a follow relationship
+3. **Follow uniqueness** - `UNIQUE(follower_id, following_id)` constraint in the DB
+4. **Cascading delete** - deleting a user automatically removes related follow records
+5. **Authorization** - all endpoints require a JWT token via `AuthMiddleware::requireAuth()`
 
-## Логика работы
+## How it works
 
-### Подписка (Follow)
-1. Пользователь нажимает "Follow" на странице профиля
-2. Frontend отправляет `POST /api/users/{username}/follow`
-3. Backend проверяет авторизацию, находит целевого пользователя
-4. Создается запись в таблице `follows`
-5. Frontend обновляет состояние: `isFollowing = true`, `followers_count + 1`
+### Follow
+1. The user clicks "Follow" on a profile page
+2. The frontend sends `POST /api/users/{username}/follow`
+3. The backend checks authorization and looks up the target user
+4. A record is created in the `follows` table
+5. The frontend updates state: `isFollowing = true`, `followers_count + 1`
 
-### Отписка (Unfollow)
-1. Пользователь нажимает "Unfollow" (или наводит на "Following")
-2. Frontend отправляет `DELETE /api/users/{username}/follow`
-3. Backend удаляет запись из таблицы `follows`
-4. Frontend обновляет состояние: `isFollowing = false`, `followers_count - 1`
+### Unfollow
+1. The user clicks "Unfollow" (or hovers over "Following")
+2. The frontend sends `DELETE /api/users/{username}/follow`
+3. The backend removes the record from the `follows` table
+4. The frontend updates state: `isFollowing = false`, `followers_count - 1`
 
-## Будущие улучшения
+## Future improvements
 
-Страницы списков подписчиков и подписок уже реализованы, см. [follow_list_page.md](follow_list_page.md).
+Follower/following list pages have already been implemented, see [follow_list_page.md](follow_list_page.md).
 
-- [ ] Фильтрация ленты по подпискам (показывать только посты от тех, на кого подписан)
-- [ ] Уведомления о новых подписчиках
-- [ ] Взаимные подписки (mutual follows)
-- [ ] Предложения "Кого читать"
+- [ ] Filter the feed by follows (show only posts from accounts you follow)
+- [ ] Notifications for new followers
+- [ ] Mutual follows
+- [ ] "Who to follow" suggestions

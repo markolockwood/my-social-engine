@@ -1,63 +1,63 @@
-# User Hover Card (Всплывающая карточка пользователя)
+# User Hover Card
 
-## Обзор
+## Overview
 
-Реализована всплывающая карточка пользователя при наведении на имя в любом месте сайта, как в Twitter. Карточка показывает основную информацию о пользователе и позволяет подписаться/отписаться без перехода на профиль.
+A user hover card has been implemented, shown when hovering over a name anywhere on the site, similar to Twitter. The card shows basic user information and lets you follow/unfollow without navigating to the profile.
 
-## Компоненты
+## Components
 
 ### 1. UserHoverCard.jsx
 
-Сама всплывающая карточка с данными пользователя.
+The hover card itself, with the user's data.
 
-**Содержимое:**
-- Аватар (64x64px, кликабельный)
-- Кнопка Follow/Unfollow (если не свой профиль)
-- Имя пользователя (display_name, крупный шрифт)
+**Content:**
+- Avatar (64x64px, clickable)
+- Follow/Unfollow button (if not your own profile)
+- User's name (display_name, large font)
 - Username (@username)
-- Bio (если есть)
-- Счетчики подписчиков и подписок (кликабельные)
+- Bio (if present)
+- Follower/following counters (clickable)
 
-**Особенности:**
-- Загружает данные пользователя через API
-- Показывает loader во время загрузки
-- Кнопка Follow/Unfollow работает и обновляет счетчики
-- Все ссылки кликабельны и ведут на соответствующие страницы
-- Позиционируется абсолютно с переданными координатами
+**Features:**
+- Loads user data via the API
+- Shows a loader while loading
+- Follow/Unfollow button works and updates counters
+- All links are clickable and lead to the corresponding pages
+- Absolutely positioned using passed-in coordinates
 
 ### 2. UserLink.jsx
 
-Обертка над обычной ссылкой `Link` для активации hover card.
+A wrapper around a regular `Link` that activates the hover card.
 
-**Логика работы:**
-- При наведении: задержка 500ms, затем показывается карточка
-- При уходе курсора: задержка 300ms, затем карточка скрывается
-- Если курсор перешел на саму карточку - она не скрывается
-- Когда курсор уходит с карточки - она скрывается сразу
+**How it works:**
+- On hover: 500ms delay, then the card is shown
+- On mouse leave: 300ms delay, then the card is hidden
+- If the cursor moves onto the card itself, it isn't hidden
+- When the cursor leaves the card, it's hidden immediately
 
-**Позиционирование:**
-- Карточка появляется под элементом с отступом 10px
-- Координаты рассчитываются относительно viewport
-- Учитывается scroll страницы
+**Positioning:**
+- The card appears below the element with a 10px offset
+- Coordinates are calculated relative to the viewport
+- Page scroll is accounted for
 
-**Таймеры:**
-- `showTimeoutRef` - таймер показа (500ms)
-- `hideTimeoutRef` - таймер скрытия (300ms)
-- `isOverCardRef` - флаг наведения на карточку
+**Timers:**
+- `showTimeoutRef` - show timer (500ms)
+- `hideTimeoutRef` - hide timer (300ms)
+- `isOverCardRef` - flag indicating the cursor is over the card
 
-### 3. Обновленные компоненты
+### 3. Updated components
 
 **Post.jsx:**
-- Имя пользователя обернуто в `UserLink`
-- При наведении на имя показывается hover card
+- The username is wrapped in `UserLink`
+- Hovering over the name shows the hover card
 
 **UserCard.jsx:**
-- Имя пользователя обернуто в `UserLink`
-- При наведении на имя показывается hover card
+- The username is wrapped in `UserLink`
+- Hovering over the name shows the hover card
 
-## Стили (UserHoverCard.css)
+## Styles (UserHoverCard.css)
 
-### Основной контейнер
+### Main container
 ```css
 .user-hover-card {
   position: absolute;
@@ -72,22 +72,22 @@
 }
 ```
 
-### Анимация появления
-- Fade in с небольшим движением вверх
-- Длительность 0.2s
+### Appearance animation
+- Fade in with a slight upward movement
+- 0.2s duration
 
-### Адаптивность
-- На мобильных устройствах (<768px) карточка скрыта
-- Hover эффекты не нужны на touch-устройствах
+### Responsiveness
+- Hidden on mobile devices (<768px)
+- Hover effects aren't needed on touch devices
 
-## API запросы
+## API requests
 
-При показе карточки выполняется запрос:
+Showing the card triggers a request:
 ```javascript
 GET /api/users/:username
 ```
 
-Возвращает:
+Returns:
 ```json
 {
   "user": {
@@ -103,50 +103,50 @@ GET /api/users/:username
 }
 ```
 
-## Использование
+## Usage
 
-### Обернуть любую ссылку на профиль
+### Wrap any link to a profile
 
-**Было:**
+**Before:**
 ```jsx
 <Link to={`/profile/${username}`} className="user-name">
   {displayName}
 </Link>
 ```
 
-**Стало:**
+**After:**
 ```jsx
 <UserLink username={username} className="user-name">
   {displayName}
 </UserLink>
 ```
 
-### Параметры UserLink
+### UserLink props
 
-- `username` (required) - имя пользователя для загрузки данных
-- `children` - содержимое ссылки (обычно display_name)
-- `className` - CSS классы для ссылки
-- `to` - custom путь (по умолчанию `/profile/:username`)
-- `...props` - любые другие пропсы для Link
+- `username` (required) - the username to load data for
+- `children` - the link's content (usually display_name)
+- `className` - CSS classes for the link
+- `to` - custom path (defaults to `/profile/:username`)
+- `...props` - any other props passed to Link
 
-## UX особенности
+## UX details
 
-### Задержки
-- **500ms** перед показом - предотвращает случайное срабатывание
-- **300ms** перед скрытием - дает время навести на карточку
+### Delays
+- **500ms** before showing - prevents accidental triggering
+- **300ms** before hiding - gives time to move onto the card
 
-### Интерактивность
-- Карточка сама интерактивна - можно навести на нее курсор
-- Кнопка Follow/Unfollow работает без закрытия карточки
-- Все ссылки внутри карточки кликабельны
+### Interactivity
+- The card itself is interactive - you can hover over it
+- The Follow/Unfollow button works without closing the card
+- All links inside the card are clickable
 
-### Производительность
-- Данные загружаются только при показе карточки
-- Нет предзагрузки данных при простом hover
-- Карточка уничтожается при скрытии (нет утечек памяти)
+### Performance
+- Data is loaded only when the card is shown
+- No preloading on a simple hover
+- The card is unmounted when hidden (no memory leaks)
 
-## Возможные улучшения
+## Possible improvements
 
-- [ ] Кэширование данных пользователей (избежать повторных запросов)
-- [ ] Preload данных при hover (начинать загрузку до истечения 500ms)
-- [ ] Умное позиционирование (если карточка выходит за границы экрана)
+- [ ] Cache user data (avoid repeat requests)
+- [ ] Preload data on hover (start loading before the 500ms delay elapses)
+- [ ] Smart positioning (if the card would overflow the screen edges)

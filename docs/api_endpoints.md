@@ -1,135 +1,135 @@
 # API Endpoints
 
-## Аутентификация
+## Authentication
 
-- `POST /api/auth/register` — регистрация пользователя
-- `POST /api/auth/login` — вход в систему (возвращает access и refresh токены)
-- `POST /api/auth/refresh` — обновить access token используя refresh token
-- `POST /api/auth/logout` — выход из системы (удаляет текущий refresh token)
-- `POST /api/auth/logout-all` — выход со всех устройств (удаляет все refresh токены пользователя)
-- `GET /api/auth/me` — получить текущего пользователя
-- `PATCH /api/user/theme` — изменить тему (light/dark)
-- `PATCH /api/user/language` — изменить язык (en/ru)
-- `PATCH /api/user/profile` — обновить профиль
-- `PATCH /api/user/video-volume` — сохранить уровень громкости видео (0.0-1.0)
-- `PATCH /api/user/username` — изменить username (защита от user enumeration)
-- `PATCH /api/user/country` — изменить страну
-- `PATCH /api/user/gender` — изменить пол (whitelist: Male, Female, Non-binary, Other, Prefer not to say)
-- `GET /api/user/account-info` — получить информацию об аккаунте (IP регистрации, GeoIP через API)
-- `POST /api/upload/avatar` — загрузить аватар (с проверкой magic bytes)
+- `POST /api/auth/register` — register a new user
+- `POST /api/auth/login` — log in (returns access and refresh tokens)
+- `POST /api/auth/refresh` — refresh access token using refresh token
+- `POST /api/auth/logout` — log out (removes the current refresh token)
+- `POST /api/auth/logout-all` — log out from all devices (removes all refresh tokens for the user)
+- `GET /api/auth/me` — get the current user
+- `PATCH /api/user/theme` — change theme (light/dark)
+- `PATCH /api/user/language` — change language (en/ru)
+- `PATCH /api/user/profile` — update profile
+- `PATCH /api/user/video-volume` — save video volume level (0.0-1.0)
+- `PATCH /api/user/username` — change username (protected against user enumeration)
+- `PATCH /api/user/country` — change country
+- `PATCH /api/user/gender` — change gender (whitelist: Male, Female, Non-binary, Other, Prefer not to say)
+- `GET /api/user/account-info` — get account information (registration IP, GeoIP via API)
+- `POST /api/upload/avatar` — upload avatar (with magic bytes verification)
 
-### Токены
+### Tokens
 
 **Access Token:**
-- Время жизни: 15 минут
-- Передается в заголовке `Authorization: Bearer <token>`
-- При истечении автоматически обновляется через refresh token
+- Lifetime: 15 minutes
+- Sent in the `Authorization: Bearer <token>` header
+- Automatically refreshed via refresh token on expiration
 
 **Refresh Token:**
-- Время жизни: 30 дней
-- Хранится в БД `refresh_tokens`
-- Привязан к user_id, IP, user-agent
-- Используется для получения нового access token через `/api/auth/refresh`
+- Lifetime: 30 days
+- Stored in the `refresh_tokens` DB table
+- Tied to user_id, IP, user-agent
+- Used to obtain a new access token via `/api/auth/refresh`
 
-## Посты
+## Posts
 
-- `GET /api/posts` — лента постов
-- `POST /api/posts` — создать пост (опционально: `parent_id`, `is_quick_reply`, `media_files[]`)
-- `GET /api/posts/{id}` — получить пост по ID
-- `DELETE /api/posts/{id}` — удалить пост
-- `GET /api/posts/{id}/replies` — ответы на пост
-- `GET /api/posts/{id}/counters` — только счётчики поста (лайки/комментарии/просмотры), лёгкий запрос для polling
-- `POST /api/posts/{id}/view` — засчитать просмотр (дедупликация по сессии на 3 часа через Redis, см. [posts_architecture.md](posts_architecture.md)); возвращает `{ counted: true|false }`
-- `POST /api/posts/{id}/like` — лайкнуть пост
-- `POST /api/posts/{id}/unlike` — убрать лайк
-- `GET /api/posts/{id}/comments` — список комментариев
-- `POST /api/posts/{id}/comments` — добавить комментарий
-- `DELETE /api/comments/{id}` — удалить комментарий
-- `POST /api/upload/post-images` — загрузить изображения для поста (до 4 шт, multipart/form-data, проверка magic bytes, возвращает `[{url, thumb, type}]`)
-- `POST /api/upload/post-gif` — загрузить GIF для поста (1 файл, multipart/form-data, проверка magic bytes, автоконвертация в MP4 через безопасный proc_open, возвращает `{url, type: 'gif'}`)
-- `POST /api/upload/post-video` — загрузить видео для поста (1 файл до 100MB, multipart/form-data, HLS-конвертация через FFmpeg с сохранением PID, возвращает `{url, thumb, type: 'video'}`)
-- `DELETE /api/upload/media` — удалить медиафайл с сервера (для cleanup при отмене поста, проверяет владельца, защита от path traversal)
-- `DELETE /api/upload/cancel` — отменить загрузку по `tracking_id` (прерывает конвертацию видео через кроссплатформенное убийство процесса по PID)
-- `GET /api/temp-uploads` — список временно загруженных медиа текущего пользователя (для восстановления черновика)
+- `GET /api/posts` — post feed
+- `POST /api/posts` — create a post (optional: `parent_id`, `is_quick_reply`, `media_files[]`)
+- `GET /api/posts/{id}` — get a post by ID
+- `DELETE /api/posts/{id}` — delete a post
+- `GET /api/posts/{id}/replies` — replies to a post
+- `GET /api/posts/{id}/counters` — counters only (likes/comments/views), lightweight request for polling
+- `POST /api/posts/{id}/view` — register a view (deduplicated per session for 3 hours via Redis, see [posts_architecture.md](posts_architecture.md)); returns `{ counted: true|false }`
+- `POST /api/posts/{id}/like` — like a post
+- `POST /api/posts/{id}/unlike` — unlike a post
+- `GET /api/posts/{id}/comments` — list of comments
+- `POST /api/posts/{id}/comments` — add a comment
+- `DELETE /api/comments/{id}` — delete a comment
+- `POST /api/upload/post-images` — upload images for a post (up to 4, multipart/form-data, magic bytes verification, returns `[{url, thumb, type}]`)
+- `POST /api/upload/post-gif` — upload a GIF for a post (1 file, multipart/form-data, magic bytes verification, auto-converted to MP4 via safe proc_open, returns `{url, type: 'gif'}`)
+- `POST /api/upload/post-video` — upload a video for a post (1 file up to 100MB, multipart/form-data, HLS conversion via FFmpeg with PID tracking, returns `{url, thumb, type: 'video'}`)
+- `DELETE /api/upload/media` — delete a media file from the server (cleanup on post cancel, checks ownership, path traversal protection)
+- `DELETE /api/upload/cancel` — cancel an upload by `tracking_id` (interrupts video conversion via cross-platform process termination by PID)
+- `GET /api/temp-uploads` — list of the current user's pending temporary media (for draft recovery)
 
-### Заголовки для загрузки медиа
+### Headers for media uploads
 
-**Обязательные заголовки:**
-- `Authorization: Bearer <access_token>` — авторизация
-- `X-Upload-Context: compose_main` — контекст загрузки (для temp_uploads и лимитов)
-- `X-Tracking-ID: <uuid>` — ID для группировки файлов одного поста
+**Required headers:**
+- `Authorization: Bearer <access_token>` — authorization
+- `X-Upload-Context: compose_main` — upload context (for temp_uploads and limits)
+- `X-Tracking-ID: <uuid>` — ID for grouping files belonging to one post
 
-**CSRF защита:**
-- Все POST/PUT/PATCH/DELETE запросы проверяют `Origin` или `Referer` заголовок
-- Разрешенные origin настраиваются в `CsrfMiddleware.php`
-- Для запросов с JWT токеном проверка смягчена
+**CSRF protection:**
+- All POST/PUT/PATCH/DELETE requests are checked against the `Origin` or `Referer` header
+- Allowed origins are configured in `CsrfMiddleware.php`
+- Validation is relaxed for requests carrying a JWT token
 
-### Лимиты загрузки
+### Upload limits
 
-- **Изображения**: до 4 файлов, максимум 5MB каждый, форматы: JPEG, PNG, WEBP
-- **GIF**: 1 файл, максимум 10MB
-- **Видео**: 1 файл, максимум 100MB, форматы: MP4, MOV, WEBM, AVI, MPEG
-- **Temp uploads лимит**: максимум 4 медиафайла одновременно (защита от переполнения)
-- **Rate limiting видео**: не более 2 одновременных конвертаций на пользователя
+- **Images**: up to 4 files, 5MB max each, formats: JPEG, PNG, WEBP
+- **GIF**: 1 file, 10MB max
+- **Video**: 1 file, 100MB max, formats: MP4, MOV, WEBM, AVI, MPEG
+- **Temp uploads limit**: maximum of 4 media files at once (overflow protection)
+- **Video rate limiting**: no more than 2 concurrent conversions per user
 
-## Пользователи
+## Users
 
-- `GET /api/users/{username}` — профиль пользователя (включает `is_following` для авторизованного пользователя)
-- `GET /api/users/{username}/posts` — посты пользователя (оригинальные + быстрые ответы)
-- `GET /api/users/{username}/replies` — ответы пользователя (только thread replies на чужие твиты)
-- `POST /api/users/{username}/follow` — подписаться на пользователя
-- `DELETE /api/users/{username}/follow` — отписаться от пользователя
-- `GET /api/users/{username}/followers` — список подписчиков (поддерживает `limit`/`offset`)
-- `GET /api/users/{username}/following` — список подписок (поддерживает `limit`/`offset`)
+- `GET /api/users/{username}` — user profile (includes `is_following` for the authenticated user)
+- `GET /api/users/{username}/posts` — user's posts (original posts + quick replies)
+- `GET /api/users/{username}/replies` — user's replies (thread replies to other users' tweets only)
+- `POST /api/users/{username}/follow` — follow a user
+- `DELETE /api/users/{username}/follow` — unfollow a user
+- `GET /api/users/{username}/followers` — list of followers (supports `limit`/`offset`)
+- `GET /api/users/{username}/following` — list of who the user follows (supports `limit`/`offset`)
 
-## Безопасность
+## Security
 
 ### Rate Limiting
-- Защита от IP spoofing через whitelist доверенных прокси
-- X-Forwarded-For учитывается только от localhost (127.0.0.1, ::1)
-- Валидация IP с фильтрацией приватных адресов
+- Protection against IP spoofing via a whitelist of trusted proxies
+- X-Forwarded-For is only honored from localhost (127.0.0.1, ::1)
+- IP validation with private address filtering
 
 ### CSRF Protection
-- Middleware проверяет Origin/Referer для всех state-changing запросов
-- Whitelist разрешенных доменов в `CsrfMiddleware.php`
-- JWT токен в localStorage обеспечивает дополнительную защиту
+- Middleware checks Origin/Referer for all state-changing requests
+- Whitelist of allowed domains in `CsrfMiddleware.php`
+- The JWT token in localStorage provides an additional layer of protection
 
 ### File Upload Security
-- **Magic bytes проверка**: валидация через `FileValidator` класс
-- **MIME type проверка**: через `finfo_file()`
-- **Path traversal защита**: все пути проверяются через `realpath()`
-- **Централизованная конфигурация**: `FileUploadConfig` для всех типов файлов
+- **Magic bytes verification**: validated via the `FileValidator` class
+- **MIME type verification**: via `finfo_file()`
+- **Path traversal protection**: all paths are checked via `realpath()`
+- **Centralized configuration**: `FileUploadConfig` for all file types
 
 ### Command Injection Protection
-- FFmpeg вызывается через `proc_open()` с массивом аргументов (не строкой)
-- Валидация всех входных путей
-- Хардкод пути к FFmpeg бинарнику
+- FFmpeg is invoked via `proc_open()` with an argument array (not a string)
+- All input paths are validated
+- FFmpeg binary path is hardcoded/whitelisted
 
-### Кроссплатформенность
-- PID процессов FFmpeg сохраняется в БД (`temp_uploads.process_pid`)
-- Убийство процессов через OS-специфичные команды:
+### Cross-platform support
+- FFmpeg process PIDs are stored in the DB (`temp_uploads.process_pid`)
+- Processes are terminated via OS-specific commands:
   - Windows: `taskkill /F /PID <pid>`
   - Linux: `kill -9 <pid>`
 
-## Ошибки
+## Errors
 
-Все ошибки возвращаются в формате:
+All errors are returned in this format:
 ```json
 {
   "error": "Error message"
 }
 ```
 
-**Коды ответов:**
-- `200` — успех
-- `201` — создано
-- `400` — неверный запрос
-- `401` — не авторизован
-- `403` — доступ запрещен (CSRF, path traversal)
-- `404` — не найдено
-- `429` — слишком много запросов (rate limit)
-- `500` — внутренняя ошибка сервера
+**Response codes:**
+- `200` — success
+- `201` — created
+- `400` — bad request
+- `401` — unauthorized
+- `403` — access denied (CSRF, path traversal)
+- `404` — not found
+- `429` — too many requests (rate limit)
+- `500` — internal server error
 
-**Обобщенные сообщения об ошибках** (защита от user enumeration):
-- `"Registration failed. Please try different credentials"` вместо `"Username already exists"`
-- `"Username change failed"` вместо `"Username is already taken"`
+**Generalized error messages** (protection against user enumeration):
+- `"Registration failed. Please try different credentials"` instead of `"Username already exists"`
+- `"Username change failed"` instead of `"Username is already taken"`
