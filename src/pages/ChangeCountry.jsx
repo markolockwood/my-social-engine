@@ -2,8 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { authAPI } from '../api/api';
-import Sidebar from '../components/Sidebar';
-import MobileNav from '../components/MobileNav';
 import '../styles/ChangeUsername.css';
 
 // Список стран (основные)
@@ -35,7 +33,7 @@ const COUNTRIES = [
   { code: 'AR', name: 'Argentina', nameRu: 'Аргентина' },
 ];
 
-const ChangeCountry = ({ embedded = false }) => {
+const ChangeCountry = () => {
   const { user, language, t } = useAuth();
   const navigate = useNavigate();
   const [country, setCountry] = useState('');
@@ -82,7 +80,7 @@ const ChangeCountry = ({ embedded = false }) => {
     return c ? (language === 'ru' ? c.nameRu : c.name) : code;
   };
 
-  const content = (
+  return (
     <>
       <div className="main-header">
         <button className="back-btn" onClick={() => navigate(-1)}>←</button>
@@ -118,20 +116,6 @@ const ChangeCountry = ({ embedded = false }) => {
         </form>
       </div>
     </>
-  );
-
-  if (embedded) {
-    return content;
-  }
-
-  return (
-    <div className="layout">
-      <Sidebar />
-      <main className="main">
-        {content}
-      </main>
-      <MobileNav />
-    </div>
   );
 };
 

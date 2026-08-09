@@ -2,11 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { authAPI } from '../api/api';
-import Sidebar from '../components/Sidebar';
-import MobileNav from '../components/MobileNav';
 import '../styles/ChangeUsername.css';
 
-const ChangeGender = ({ embedded = false }) => {
+const ChangeGender = () => {
   const { t } = useAuth();
   const navigate = useNavigate();
   const [genderType, setGenderType] = useState(''); // 'male', 'female', 'custom'
@@ -68,7 +66,7 @@ const ChangeGender = ({ embedded = false }) => {
     }
   };
 
-  const content = (
+  return (
     <>
       <div className="main-header">
         <button className="back-btn" onClick={() => navigate(-1)}>←</button>
@@ -148,20 +146,6 @@ const ChangeGender = ({ embedded = false }) => {
         </form>
       </div>
     </>
-  );
-
-  if (embedded) {
-    return content;
-  }
-
-  return (
-    <div className="layout">
-      <Sidebar />
-      <main className="main">
-        {content}
-      </main>
-      <MobileNav />
-    </div>
   );
 };
 

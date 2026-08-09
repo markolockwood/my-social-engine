@@ -38,6 +38,15 @@
 /* ===== Сброс ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* Полоса скролла всегда зарезервирована, иначе центрированный .layout (margin: 0 auto)
+   сдвигается на её ширину при переходе между страницами с разной высотой контента —
+   раньше это маскировалось полным перемонтированием страницы при каждой навигации.
+   overflow-y: scroll — фолбэк для Safari, где scrollbar-gutter не поддерживается. */
+html {
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
+}
+
 body {
   font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   background: var(--bg);

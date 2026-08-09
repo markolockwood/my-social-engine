@@ -2,12 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { authAPI } from '../api/api';
-import Sidebar from '../components/Sidebar';
-import MobileNav from '../components/MobileNav';
 import EditProfileModal from '../components/EditProfileModal';
 import '../styles/AccountInformation.css';
 
-const AccountInformation = ({ embedded = false }) => {
+const AccountInformation = () => {
   const { user, t } = useAuth();
   const navigate = useNavigate();
   const [accountData, setAccountData] = useState(null);
@@ -64,30 +62,16 @@ const AccountInformation = ({ embedded = false }) => {
   };
 
   if (loading) {
-    return embedded ? (
+    return (
       <div className="loading-container">
         <div className="loading-spinner">{t('feed.loading')}</div>
-      </div>
-    ) : (
-      <div className="layout">
-        <Sidebar />
-        <main className="main">
-          <div className="main-header">
-            <button className="back-btn" onClick={() => navigate(-1)}>←</button>
-            <h2>{t('settings.account_info.title')}</h2>
-          </div>
-          <div className="loading-container">
-            <div className="loading-spinner">{t('feed.loading')}</div>
-          </div>
-        </main>
-        <MobileNav />
       </div>
     );
   }
 
   const age = calculateAge(accountData?.birth_date);
 
-  const content = (
+  return (
     <>
       <div className="main-header">
         <button className="back-btn" onClick={() => navigate(-1)}>←</button>
@@ -209,20 +193,6 @@ const AccountInformation = ({ embedded = false }) => {
         />
       )}
     </>
-  );
-
-  if (embedded) {
-    return content;
-  }
-
-  return (
-    <div className="layout">
-      <Sidebar />
-      <main className="main">
-        {content}
-      </main>
-      <MobileNav />
-    </div>
   );
 };
 

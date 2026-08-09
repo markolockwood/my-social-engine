@@ -2,11 +2,9 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { authAPI } from '../api/api';
-import Sidebar from '../components/Sidebar';
-import MobileNav from '../components/MobileNav';
 import '../styles/ChangeUsername.css';
 
-const ChangeUsername = ({ embedded = false }) => {
+const ChangeUsername = () => {
   const { user, setUser, t } = useAuth();
   const navigate = useNavigate();
   const [username, setUsername] = useState(user?.username || '');
@@ -50,7 +48,7 @@ const ChangeUsername = ({ embedded = false }) => {
     }
   };
 
-  const content = (
+  return (
     <>
       <div className="main-header">
         <button className="back-btn" onClick={() => navigate(-1)}>←</button>
@@ -83,20 +81,6 @@ const ChangeUsername = ({ embedded = false }) => {
         </form>
       </div>
     </>
-  );
-
-  if (embedded) {
-    return content;
-  }
-
-  return (
-    <div className="layout">
-      <Sidebar />
-      <main className="main">
-        {content}
-      </main>
-      <MobileNav />
-    </div>
   );
 };
 

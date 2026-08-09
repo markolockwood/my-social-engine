@@ -1,8 +1,6 @@
 import React from 'react';
 import { Link, useNavigate, useParams, Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import Sidebar from '../components/Sidebar';
-import MobileNav from '../components/MobileNav';
 import AccountInformation from './AccountInformation';
 import ChangeUsername from './ChangeUsername';
 import ChangeCountry from './ChangeCountry';
@@ -84,48 +82,42 @@ const Settings = () => {
   const isDetailView = segments.length > 1; // есть ли что-то после /settings
 
   return (
-    <div className="layout settings-layout">
-      <Sidebar />
-
-      <main className={`main settings-main${isDetailView ? ' settings-detail-open' : ''}`}>
-        <nav className="settings-nav">
-          <div className="main-header">
-            <h2>{t('settings.title')}</h2>
-          </div>
-          <div className="settings-nav-list">
-            {SETTINGS_SECTIONS.map((section) => (
-              <Link
-                key={section.id}
-                to={`/settings/${section.id}`}
-                className={`settings-nav-item${activeId === section.id ? ' active' : ''}`}
-              >
-                <span>{t(section.titleKey)}</span>
-                <span className="settings-chevron">›</span>
-              </Link>
-            ))}
-          </div>
-        </nav>
-
-        <div className="settings-content">
-          <Routes>
-            {/* Account Info подстраницы - БОЛЕЕ СПЕЦИФИЧНЫЕ РОУТЫ ПЕРВЫМИ */}
-            <Route path="account/info/username" element={<ChangeUsername embedded />} />
-            <Route path="account/info/country" element={<ChangeCountry embedded />} />
-            <Route path="account/info/language" element={<ChangeLanguage embedded />} />
-            <Route path="account/info/gender" element={<ChangeGender embedded />} />
-            <Route path="account/info" element={<AccountInformation embedded />} />
-
-            {/* Конкретный раздел выбран явно */}
-            <Route path=":sectionId" element={<SectionContent />} />
-
-            {/* /settings без раздела — по умолчанию открыт "Your account" */}
-            <Route path="" element={<Navigate to="account" replace relative="path" />} />
-          </Routes>
+    <main className={`main settings-main${isDetailView ? ' settings-detail-open' : ''}`}>
+      <nav className="settings-nav">
+        <div className="main-header">
+          <h2>{t('settings.title')}</h2>
         </div>
-      </main>
+        <div className="settings-nav-list">
+          {SETTINGS_SECTIONS.map((section) => (
+            <Link
+              key={section.id}
+              to={`/settings/${section.id}`}
+              className={`settings-nav-item${activeId === section.id ? ' active' : ''}`}
+            >
+              <span>{t(section.titleKey)}</span>
+              <span className="settings-chevron">›</span>
+            </Link>
+          ))}
+        </div>
+      </nav>
 
-      <MobileNav />
-    </div>
+      <div className="settings-content">
+        <Routes>
+          {/* Account Info подстраницы - БОЛЕЕ СПЕЦИФИЧНЫЕ РОУТЫ ПЕРВЫМИ */}
+          <Route path="account/info/username" element={<ChangeUsername />} />
+          <Route path="account/info/country" element={<ChangeCountry />} />
+          <Route path="account/info/language" element={<ChangeLanguage />} />
+          <Route path="account/info/gender" element={<ChangeGender />} />
+          <Route path="account/info" element={<AccountInformation />} />
+
+          {/* Конкретный раздел выбран явно */}
+          <Route path=":sectionId" element={<SectionContent />} />
+
+          {/* /settings без раздела — по умолчанию открыт "Your account" */}
+          <Route path="" element={<Navigate to="account" replace relative="path" />} />
+        </Routes>
+      </div>
+    </main>
   );
 };
 

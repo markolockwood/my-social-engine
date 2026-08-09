@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { postsAPI } from '../api/api';
 import { useAuth } from '../context/AuthContext';
-import Sidebar from '../components/Sidebar';
-import MobileNav from '../components/MobileNav';
 import ComposePost from '../components/ComposePost';
 import Post from '../components/Post';
 import '../styles/Home.css';
@@ -147,9 +145,7 @@ const Home = () => {
   }, []);
 
   return (
-    <div className="layout">
-      <Sidebar />
-
+    <>
       <main className="main">
         <div className="main-header">
           <h2>{t('feed.title')}</h2>
@@ -219,9 +215,7 @@ const Home = () => {
           </div>
         </div>
       </aside>
-
-      <MobileNav />
-    </div>
+    </>
   );
 };
 

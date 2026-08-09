@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { UploadProvider } from './context/UploadContext';
 import { PostsProvider } from './context/PostsContext';
 import GlobalUploadIndicator from './components/GlobalUploadIndicator';
+import Layout from './components/Layout';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -13,7 +14,9 @@ import FollowList from './pages/FollowList';
 import Settings from './pages/Settings';
 import './styles/App.css';
 
-const PrivateRoute = ({ children }) => {
+// Оборачивает приватную область (Layout с сайдбаром) целиком: если пользователь не
+// авторизован — редирект на /login до того, как Layout и его дочерние роуты успеют смонтироваться.
+const PrivateLayout = () => {
   const { user, loading } = useAuth();
 
   if (loading) {
@@ -24,7 +27,7 @@ const PrivateRoute = ({ children }) => {
     );
   }
 
-  return user ? children : <Navigate to="/login" />;
+  return user ? <Layout /> : <Navigate to="/login" />;
 };
 
 const PublicRoute = ({ children }) => {
@@ -64,46 +67,16 @@ function App() {
                   </PublicRoute>
                 }
               />
-              <Route
-                path="/"
-                element={
-                  <PrivateRoute>
-                    <Home />
-                  </PrivateRoute>
-                }
-              />
-              <Route
-                path="/profile/:username"
-                element={
-                  <PrivateRoute>
-                    <Profile />
-                  </PrivateRoute>
-                }
-              />
-              <Route
-                path="/post/:id"
-                element={
-                  <PrivateRoute>
-                    <PostPage />
-                  </PrivateRoute>
-                }
-              />
-              <Route
-                path="/profile/:username/:tab"
-                element={
-                  <PrivateRoute>
-                    <FollowList />
-                  </PrivateRoute>
-                }
-              />
-              <Route
-                path="/settings/*"
-                element={
-                  <PrivateRoute>
-                    <Settings />
-                  </PrivateRoute>
-                }
-              />
+
+              {/* Приватная область: Layout монтируется один раз, страницы рендерятся через Outlet */}
+              <Route path="/" element={<PrivateLayout />}>
+                <Route index element={<Home />} />
+                <Route path="profile/:username" element={<Profile />} />
+                <Route path="post/:id" element={<PostPage />} />
+                <Route path="profile/:username/:tab" element={<FollowList />} />
+                <Route path="settings/*" element={<Settings />} />
+              </Route>
+
               <Route path="*" element={<Navigate to="/" />} />
             </Routes>
             <GlobalUploadIndicator />

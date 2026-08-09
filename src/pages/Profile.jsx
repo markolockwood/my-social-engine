@@ -2,8 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { usersAPI, postsAPI } from '../api/api';
 import { useAuth } from '../context/AuthContext';
-import Sidebar from '../components/Sidebar';
-import MobileNav from '../components/MobileNav';
 import Post from '../components/Post';
 import QuotedPost from '../components/QuotedPost';
 import EditProfileModal from '../components/EditProfileModal';
@@ -179,27 +177,17 @@ const Profile = () => {
     : null;
 
   if (loading) return (
-    <div className="layout">
-      <Sidebar />
-      <main className="main">
-        <div className="loading-container"><div className="loading-spinner">{t('profile.loading')}</div></div>
-      </main>
-      <MobileNav />
-    </div>
+    <main className="main">
+      <div className="loading-container"><div className="loading-spinner">{t('profile.loading')}</div></div>
+    </main>
   );
 
   if (error) return (
-    <div className="layout">
-      <Sidebar />
-      <main className="main"><div className="error-container">{error}</div></main>
-      <MobileNav />
-    </div>
+    <main className="main"><div className="error-container">{error}</div></main>
   );
 
   return (
-    <div className="layout">
-      <Sidebar />
-
+    <>
       <main className="main">
         <div className="main-header profile-main-header">
           <h2>{profileUser.display_name}</h2>
@@ -295,8 +283,6 @@ const Profile = () => {
         <div className="search-box">🔍 {t('feed.search')}</div>
       </aside>
 
-      <MobileNav />
-
       {editOpen && (
         <EditProfileModal
           user={profileUser}
@@ -304,7 +290,7 @@ const Profile = () => {
           onSave={handleProfileSaved}
         />
       )}
-    </div>
+    </>
   );
 };
 

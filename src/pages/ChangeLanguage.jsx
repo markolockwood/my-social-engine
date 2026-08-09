@@ -1,11 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import Sidebar from '../components/Sidebar';
-import MobileNav from '../components/MobileNav';
 import '../styles/ChangeUsername.css';
 
-const ChangeLanguage = ({ embedded = false }) => {
+const ChangeLanguage = () => {
   const { user, language, changeLanguage, t } = useAuth();
   const navigate = useNavigate();
   const [selectedLang, setSelectedLang] = useState(language);
@@ -30,7 +28,7 @@ const ChangeLanguage = ({ embedded = false }) => {
     }
   };
 
-  const content = (
+  return (
     <>
       <div className="main-header">
         <button className="back-btn" onClick={() => navigate(-1)}>←</button>
@@ -73,20 +71,6 @@ const ChangeLanguage = ({ embedded = false }) => {
         </form>
       </div>
     </>
-  );
-
-  if (embedded) {
-    return content;
-  }
-
-  return (
-    <div className="layout">
-      <Sidebar />
-      <main className="main">
-        {content}
-      </main>
-      <MobileNav />
-    </div>
   );
 };
 

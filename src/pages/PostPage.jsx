@@ -3,8 +3,6 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { postsAPI } from '../api/api';
 import { useAuth } from '../context/AuthContext';
 import { usePostsContext } from '../context/PostsContext';
-import Sidebar from '../components/Sidebar';
-import MobileNav from '../components/MobileNav';
 import Post from '../components/Post';
 import QuotedPost from '../components/QuotedPost';
 import PostMedia from '../components/PostMedia';
@@ -314,25 +312,17 @@ const PostPage = () => {
 
   if (loading) {
     return (
-      <div className="layout">
-        <Sidebar />
-        <main className="main">
-          <div className="pp-loading">{t('post_page.loading')}</div>
-        </main>
-        <MobileNav />
-      </div>
+      <main className="main">
+        <div className="pp-loading">{t('post_page.loading')}</div>
+      </main>
     );
   }
 
   if (error) {
     return (
-      <div className="layout">
-        <Sidebar />
-        <main className="main">
-          <div className="pp-error">{error}</div>
-        </main>
-        <MobileNav />
-      </div>
+      <main className="main">
+        <div className="pp-error">{error}</div>
+      </main>
     );
   }
 
@@ -347,9 +337,7 @@ const PostPage = () => {
   const { isLiked, likesCount, commentsCount, viewsCount } = postState;
 
   return (
-    <div className="layout">
-      <Sidebar />
-
+    <>
       <main className="main">
         <div className="main-header">
           <button className="back-btn" onClick={() => navigate(-1)}>←</button>
@@ -464,8 +452,6 @@ const PostPage = () => {
         <div className="search-box">🔍 {t('feed.search')}</div>
       </aside>
 
-      <MobileNav />
-
       {replyModalOpen && post && (
         <ComposeReplyModal
           post={post}
@@ -478,7 +464,7 @@ const PostPage = () => {
           }}
         />
       )}
-    </div>
+    </>
   );
 };
 

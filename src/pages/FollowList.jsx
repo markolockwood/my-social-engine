@@ -2,8 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { usersAPI } from '../api/api';
 import { useAuth } from '../context/AuthContext';
-import Sidebar from '../components/Sidebar';
-import MobileNav from '../components/MobileNav';
 import UserCard from '../components/UserCard';
 import '../styles/FollowList.css';
 
@@ -121,34 +119,24 @@ const FollowList = () => {
 
   if (loading && users.length === 0) {
     return (
-      <div className="layout">
-        <Sidebar />
-        <main className="main">
-          <div className="loading-container">
-            <div className="loading-spinner">{t('follow_list.loading')}</div>
-          </div>
-        </main>
-        <MobileNav />
-      </div>
+      <main className="main">
+        <div className="loading-container">
+          <div className="loading-spinner">{t('follow_list.loading')}</div>
+        </div>
+      </main>
     );
   }
 
   if (error) {
     return (
-      <div className="layout">
-        <Sidebar />
-        <main className="main">
-          <div className="error-container">{error}</div>
-        </main>
-        <MobileNav />
-      </div>
+      <main className="main">
+        <div className="error-container">{error}</div>
+      </main>
     );
   }
 
   return (
-    <div className="layout">
-      <Sidebar />
-
+    <>
       <main className="main">
         {profileUser && (
           <div className="main-header">
@@ -201,9 +189,7 @@ const FollowList = () => {
       <aside className="right">
         <div className="search-box">🔍 {t('feed.search')}</div>
       </aside>
-
-      <MobileNav />
-    </div>
+    </>
   );
 };
 
