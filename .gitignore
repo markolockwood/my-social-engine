@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+vendor/
+
+# Build
+dist/
+build/
+
+# Environment
+.env
+.env.local
+.env.production
+.well-known
+
+# Logs
+*.log
+npm-debug.log*
+
+# IDE
+
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temp files
+*.tmp
+*.temp
+/uploads/avatars
+/uploads/posts
+/uploads/gifs
+/uploads/videos
+
+adminer.php
+.user.ini
