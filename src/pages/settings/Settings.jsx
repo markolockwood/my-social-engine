@@ -6,6 +6,7 @@ import ChangeUsername from './ChangeUsername';
 import ChangeCountry from './ChangeCountry';
 import ChangeLanguage from './ChangeLanguage';
 import ChangeGender from './ChangeGender';
+import AudienceSettings from './AudienceSettings';
 import './Settings.css';
 
 // Структура разделов настроек
@@ -109,6 +110,9 @@ const Settings = () => {
           <Route path="account/info/language" element={<ChangeLanguage />} />
           <Route path="account/info/gender" element={<ChangeGender />} />
           <Route path="account/info" element={<AccountInformation />} />
+
+          {/* Privacy подстраницы */}
+          <Route path="privacy/audience" element={<AudienceSettings />} />
 
           {/* Конкретный раздел выбран явно */}
           <Route path=":sectionId" element={<SectionContent />} />

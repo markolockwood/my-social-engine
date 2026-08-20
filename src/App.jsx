@@ -11,6 +11,7 @@ import Register from '@/pages/Register';
 import Profile from '@/pages/Profile';
 import PostPage from '@/pages/PostPage';
 import FollowList from '@/pages/FollowList';
+import FollowerRequests from '@/pages/FollowerRequests';
 import Settings from '@/pages/settings/Settings';
 import '@/styles/App.css';
 
@@ -74,6 +75,7 @@ function App() {
                 <Route path="profile/:username" element={<Profile />} />
                 <Route path="post/:id" element={<PostPage />} />
                 <Route path="profile/:username/:tab" element={<FollowList />} />
+                <Route path="follower-requests" element={<FollowerRequests />} />
                 <Route path="settings/*" element={<Settings />} />
               </Route>
 

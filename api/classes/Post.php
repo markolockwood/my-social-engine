@@ -28,6 +28,7 @@ class Post {
                     u.username,
                     u.display_name,
                     u.avatar_url,
+                    u.protected_posts,
                     (SELECT username FROM posts parent JOIN users pu ON parent.user_id = pu.id WHERE parent.id = p.parent_id) as parent_username,
                     (SELECT COUNT(*) FROM likes    WHERE post_id = p.id) as likes_count,
                     (SELECT COUNT(*) FROM posts    WHERE parent_id = p.id) as comments_count,

@@ -41,10 +41,23 @@
   width: fit-content;
   transition: background 0.15s;
   color: var(--text);
+  position: relative;
 }
 
 .nav-item:hover { background: var(--bg-hover); }
 .nav-item.active { font-weight: 700; }
+
+.nav-badge {
+  background: var(--blue);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 12px;
+  min-width: 20px;
+  text-align: center;
+  margin-left: auto;
+}
 
 .nav-icon {
   font-size: 22px;

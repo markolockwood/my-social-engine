@@ -1,11 +1,29 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
+import { authAPI } from '@/api/api';
 import './Sidebar.css';
 
 const Sidebar = () => {
   const { user, logout, theme, toggleTheme, language, changeLanguage, t } = useAuth();
   const navigate = useNavigate();
+  const [requestsCount, setRequestsCount] = useState(0);
+
+  useEffect(() => {
+    loadRequestsCount();
+    // Обновляем счётчик каждые 30 секунд
+    const interval = setInterval(loadRequestsCount, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const loadRequestsCount = async () => {
+    try {
+      const res = await authAPI.getFollowRequestsCount();
+      setRequestsCount(res.data.count || 0);
+    } catch (err) {
+      console.error('Failed to load requests count', err);
+    }
+  };
 
   const handleLogout = () => {
     if (window.confirm(t('auth.logout_confirm'))) {
@@ -35,6 +53,13 @@ const Sidebar = () => {
           <span className="nav-icon">✉️</span>
           <span>{t('nav.messages')}</span>
         </Link>
+        {requestsCount > 0 && (
+          <Link to="/follower-requests" className="nav-item">
+            <span className="nav-icon">👥</span>
+            <span>{t('nav.follower_requests')}</span>
+            <span className="nav-badge">{requestsCount > 99 ? '99+' : requestsCount}</span>
+          </Link>
+        )}
         <Link to={`/profile/${user?.username}`} className="nav-item">
           <span className="nav-icon">👤</span>
           <span>{t('nav.profile')}</span>

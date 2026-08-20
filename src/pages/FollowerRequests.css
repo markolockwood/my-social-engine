@@ -1,0 +1,105 @@
+.follower-requests-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.follower-request-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.15s;
+}
+
+.follower-request-item:hover {
+  background: var(--bg-hover);
+}
+
+.follower-request-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.follower-request-info {
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.follower-request-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.follower-request-name:hover {
+  text-decoration: underline;
+}
+
+.follower-request-username {
+  font-size: 15px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.follower-request-bio {
+  font-size: 15px;
+  color: var(--text);
+  margin-top: 4px;
+  line-height: 1.4;
+}
+
+.follower-request-actions {
+  display: flex;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.follower-request-btn {
+  padding: 8px 20px;
+  border-radius: 24px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid;
+  transition: all 0.2s;
+  min-width: 90px;
+}
+
+.follower-request-btn-decline {
+  background: transparent;
+  color: var(--red);
+  border-color: var(--red);
+}
+
+.follower-request-btn-decline:hover {
+  background: rgba(244, 33, 46, 0.1);
+}
+
+.follower-request-btn-accept {
+  background: var(--text);
+  color: var(--bg);
+  border-color: var(--text);
+}
+
+.follower-request-btn-accept:hover {
+  opacity: 0.9;
+}
+
+@media (max-width: 640px) {
+  .follower-request-actions {
+    flex-direction: column;
+    gap: 8px;
+    min-width: 90px;
+  }
+
+  .follower-request-btn {
+    width: 100%;
+  }
+}

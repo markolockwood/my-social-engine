@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { usersAPI } from '@/api/api';
 import { useAuth } from '@/context/AuthContext';
 import UserLink from './UserLink';
+import UserDisplayName from './UserDisplayName';
 import './UserCard.css';
 
 const UserCard = ({ user, onFollowChange }) => {
@@ -49,7 +50,12 @@ const UserCard = ({ user, onFollowChange }) => {
       <div className="user-card-content">
         <div className="user-card-header">
           <UserLink username={user.username} className="user-card-names">
-            <div className="user-card-name">{user.display_name}</div>
+            <div className="user-card-name">
+              <UserDisplayName
+                displayName={user.display_name}
+                isProtected={user.protected_posts}
+              />
+            </div>
             <div className="user-card-username">@{user.username}</div>
           </UserLink>
 

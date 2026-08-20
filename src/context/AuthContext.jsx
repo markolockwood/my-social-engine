@@ -2,8 +2,9 @@ import React, { createContext, useState, useContext, useEffect, useCallback } fr
 import { authAPI } from '../api/api';
 import en from '../i18n/en.json';
 import ru from '../i18n/ru.json';
+import uk from '../i18n/uk.json';
 
-const translations = { en, ru };
+const translations = { en, ru, uk };
 
 // Получает значение по dot-notation ключу, например 'nav.home'
 function resolve(dict, key) {

@@ -7,6 +7,7 @@ import ComposeReplyModal from '@/components/compose/ComposeReplyModal';
 import QuotedPost from './QuotedPost';
 import PostMedia from './PostMedia';
 import UserLink from '@/components/user/UserLink';
+import UserDisplayName from '@/components/user/UserDisplayName';
 import './Post.css';
 
 /**
@@ -161,7 +162,10 @@ const Post = ({ post, onDelete, onReplyCreated, quotedPost }) => {
             className="tweet-name"
             onClick={(e) => e.stopPropagation()}
           >
-            {post.display_name}
+            <UserDisplayName
+              displayName={post.display_name}
+              isProtected={post.protected_posts}
+            />
           </UserLink>
           <span className="tweet-handle">@{post.username}</span>
           <span className="tweet-dot">·</span>

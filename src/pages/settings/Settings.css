@@ -153,3 +153,72 @@
     display: block;
   }
 }
+
+/* ===== Чекбокс для настроек ===== */
+.settings-item-checkbox {
+  cursor: default;
+}
+
+.settings-item-checkbox:hover {
+  background: transparent;
+}
+
+.settings-checkbox-wrapper {
+  position: relative;
+  display: inline-block;
+  width: 40px;
+  height: 20px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.settings-checkbox-input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.settings-checkbox {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--text-muted);
+  border-radius: 20px;
+  transition: background-color 0.2s;
+}
+
+.settings-checkbox::before {
+  content: '';
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  left: 2px;
+  top: 2px;
+  background-color: white;
+  border-radius: 50%;
+  transition: transform 0.2s;
+}
+
+.settings-checkbox-input:checked + .settings-checkbox {
+  background-color: var(--blue);
+}
+
+.settings-checkbox-input:checked + .settings-checkbox::before {
+  transform: translateX(20px);
+}
+
+.settings-checkbox-input:disabled + .settings-checkbox {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.learn-more-link {
+  color: var(--blue);
+  text-decoration: none;
+}
+
+.learn-more-link:hover {
+  text-decoration: underline;
+}

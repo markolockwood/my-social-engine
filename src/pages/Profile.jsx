@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { usersAPI, postsAPI } from '../api/api';
+import { usersAPI, postsAPI, authAPI } from '../api/api';
 import { useAuth } from '../context/AuthContext';
 import Post from '@/components/post/Post';
 import QuotedPost from '@/components/post/QuotedPost';
 import EditProfileModal from '@/components/user/EditProfileModal';
+import ConfirmModal from '@/components/modals/ConfirmModal';
+import UserDisplayName from '@/components/user/UserDisplayName';
 import './Profile.css';
 
 /**
@@ -95,6 +97,10 @@ const Profile = () => {
   const [editOpen, setEditOpen] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
+  const [postsProtected, setPostsProtected] = useState(false);
+  const [repliesProtected, setRepliesProtected] = useState(false);
+  const [followStatus, setFollowStatus] = useState('none'); // 'following' | 'pending' | 'none'
+  const [showCancelModal, setShowCancelModal] = useState(false);
   const { user: authUser, updateUser, t } = useAuth();
 
   const isOwn = authUser && profileUser && authUser.username === profileUser.username;
@@ -119,8 +125,11 @@ const Profile = () => {
 
       setProfileUser(userRes.data.user);
       setIsFollowing(userRes.data.user.is_following || false);
+      setFollowStatus(userRes.data.user.follow_status || 'none');
       setPosts(postsRes.data.posts || []);
+      setPostsProtected(postsRes.data.protected || false);
       setReplies([]);
+      setRepliesProtected(false);
     } catch (err) {
       console.error('Profile load error:', err);
       setError(t('profile.not_found'));
@@ -135,8 +144,12 @@ const Profile = () => {
     if (next === 'replies' && replies.length === 0) {
       try {
         const res = await usersAPI.getUserReplies(username);
-        setReplies(res.data.replies);
-      } catch { setReplies([]); }
+        setReplies(res.data.replies || []);
+        setRepliesProtected(res.data.protected || false);
+      } catch {
+        setReplies([]);
+        setRepliesProtected(false);
+      }
     }
   };
 
@@ -151,27 +164,58 @@ const Profile = () => {
   const handleFollowToggle = async () => {
     if (followLoading || !profileUser) return;
 
+    // Если статус pending - показываем модальное окно подтверждения
+    if (followStatus === 'pending') {
+      setShowCancelModal(true);
+      return;
+    }
+
     try {
       setFollowLoading(true);
 
       if (isFollowing) {
         await usersAPI.unfollow(profileUser.username);
         setIsFollowing(false);
+        setFollowStatus('none');
         setProfileUser(prev => ({
           ...prev,
           followers_count: Math.max(0, parseInt(prev.followers_count) - 1)
         }));
       } else {
-        await usersAPI.follow(profileUser.username);
-        setIsFollowing(true);
-        setProfileUser(prev => ({
-          ...prev,
-          followers_count: parseInt(prev.followers_count) + 1
-        }));
+        const res = await usersAPI.follow(profileUser.username);
+        const newStatus = res.data.follow_status || 'following';
+
+        setFollowStatus(newStatus);
+
+        if (newStatus === 'following') {
+          setIsFollowing(true);
+          setProfileUser(prev => ({
+            ...prev,
+            followers_count: parseInt(prev.followers_count) + 1
+          }));
+          // Если подписка прошла, обновляем посты
+          setPostsProtected(false);
+          loadProfile();
+        }
+        // Если pending - просто обновляем статус кнопки
       }
     } catch (err) {
       console.error('Follow toggle error:', err);
       alert(t('profile.follow_error') || 'Failed to update follow status');
+    } finally {
+      setFollowLoading(false);
+    }
+  };
+
+  const handleCancelRequest = async () => {
+    try {
+      setFollowLoading(true);
+      await authAPI.cancelFollowRequest(profileUser.username);
+      setFollowStatus('none');
+      setShowCancelModal(false);
+    } catch (err) {
+      console.error('Cancel request error:', err);
+      alert('Failed to cancel request');
     } finally {
       setFollowLoading(false);
     }
@@ -196,7 +240,12 @@ const Profile = () => {
     <>
       <main className="main">
         <div className="main-header profile-main-header">
-          <h2>{profileUser.display_name}</h2>
+          <h2>
+            <UserDisplayName
+              displayName={profileUser.display_name}
+              isProtected={profileUser.protected_posts}
+            />
+          </h2>
           <div style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: 400 }}>
             {profileUser.posts_count} {t('profile.posts_count')}
           </div>
@@ -217,15 +266,40 @@ const Profile = () => {
             </button>
           ) : (
             <button
-              className={`profile-follow-btn ${isFollowing ? 'following' : ''}`}
+              className={`profile-follow-btn ${
+                followStatus === 'following' ? 'following' :
+                followStatus === 'pending' ? 'pending' : ''
+              }`}
               onClick={handleFollowToggle}
               disabled={followLoading}
+              onMouseEnter={(e) => {
+                if (followStatus === 'following') {
+                  e.target.textContent = t('profile.unfollow');
+                } else if (followStatus === 'pending') {
+                  e.target.textContent = t('profile.cancel_request');
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (followStatus === 'following') {
+                  e.target.textContent = t('profile.following_btn');
+                } else if (followStatus === 'pending') {
+                  e.target.textContent = t('profile.pending');
+                }
+              }}
             >
-              {followLoading ? '...' : isFollowing ? t('profile.unfollow') : t('profile.follow')}
+              {followLoading ? '...' :
+               followStatus === 'following' ? t('profile.following_btn') :
+               followStatus === 'pending' ? t('profile.pending') :
+               t('profile.follow')}
             </button>
           )}
 
-          <div className="profile-name">{profileUser.display_name}</div>
+          <div className="profile-name">
+            <UserDisplayName
+              displayName={profileUser.display_name}
+              isProtected={profileUser.protected_posts}
+            />
+          </div>
           <div className="profile-handle">@{profileUser.username}</div>
 
           {profileUser.bio && <div className="profile-bio">{profileUser.bio}</div>}
@@ -246,42 +320,70 @@ const Profile = () => {
           </div>
         </div>
 
-        <div className="profile-tabs">
-          {['posts', 'replies', 'media', 'likes'].map((key) => (
-            <div
-              key={key}
-              className={`profile-tab${tab === key ? ' active' : ''}`}
-              onClick={() => handleTabChange(key)}
-            >
-              {t(`profile.tab_${key}`)}
-            </div>
-          ))}
-        </div>
+        {/* Вкладки показываем только если посты не защищены или пользователь подписан */}
+        {!postsProtected && (
+          <div className="profile-tabs">
+            {['posts', 'replies', 'media', 'likes'].map((key) => (
+              <div
+                key={key}
+                className={`profile-tab${tab === key ? ' active' : ''}`}
+                onClick={() => handleTabChange(key)}
+              >
+                {t(`profile.tab_${key}`)}
+              </div>
+            ))}
+          </div>
+        )}
 
-        {tab === 'posts' && (
-          posts.length === 0
-            ? <div className="empty-state"><p>{t('profile.empty')}</p></div>
-            : posts
-                .filter((p) => !p.parent_id || p.is_quick_reply === '1' || p.is_quick_reply === true)
-                .map((p) => (
-                  <PostWithMeta key={p.id} post={p} currentUsername={profileUser.username} onDelete={handlePostDeleted} />
+        {/* Если посты защищены - показываем сообщение вместо контента */}
+        {postsProtected ? (
+          <div className="protected-posts-message">
+            <h3>{t('profile.protected_posts_title')}</h3>
+            <p>
+              {t('profile.protected_posts_message', { username: profileUser.username })}{' '}
+              <a href="#" className="learn-more-link">{t('settings.account_info.learn_more')}</a>
+            </p>
+          </div>
+        ) : (
+          <>
+            {tab === 'posts' && (
+              posts.length === 0 ? (
+                <div className="empty-state"><p>{t('profile.empty')}</p></div>
+              ) : (
+                posts
+                  .filter((p) => !p.parent_id || p.is_quick_reply === '1' || p.is_quick_reply === true)
+                  .map((p) => (
+                    <PostWithMeta key={p.id} post={p} currentUsername={profileUser.username} onDelete={handlePostDeleted} />
+                  ))
+              )
+            )}
+
+            {tab === 'replies' && (
+              repliesProtected ? (
+                <div className="protected-posts-message">
+                  <h3>{t('profile.protected_posts_title')}</h3>
+                  <p>
+                    {t('profile.protected_posts_message', { username: profileUser.username })}{' '}
+                    <a href="#" className="learn-more-link">{t('settings.account_info.learn_more')}</a>
+                  </p>
+                </div>
+              ) : replies.length === 0 ? (
+                <div className="empty-state"><p>{t('profile.empty_replies')}</p></div>
+              ) : (
+                replies.map((item) => (
+                  <ReplyThread
+                    key={item.reply.id}
+                    item={item}
+                    onDelete={handleReplyDeleted}
+                  />
                 ))
-        )}
+              )
+            )}
 
-        {tab === 'replies' && (
-          replies.length === 0
-            ? <div className="empty-state"><p>{t('profile.empty_replies')}</p></div>
-            : replies.map((item) => (
-                <ReplyThread
-                  key={item.reply.id}
-                  item={item}
-                  onDelete={handleReplyDeleted}
-                />
-              ))
-        )}
-
-        {(tab === 'media' || tab === 'likes') && (
-          <div className="empty-state"><p>Скоро</p></div>
+            {(tab === 'media' || tab === 'likes') && (
+              <div className="empty-state"><p>Скоро</p></div>
+            )}
+          </>
         )}
       </main>
 
@@ -296,6 +398,17 @@ const Profile = () => {
           onSave={handleProfileSaved}
         />
       )}
+
+      {/* Модальное окно отмены запроса на подписку */}
+      <ConfirmModal
+        isOpen={showCancelModal}
+        title={t('profile.cancel_request_title')}
+        message={t('profile.cancel_request_message', { username: profileUser?.username })}
+        confirmText={t('profile.cancel_request_confirm')}
+        cancelText={t('profile.cancel_request_back')}
+        onConfirm={handleCancelRequest}
+        onCancel={() => setShowCancelModal(false)}
+      />
     </>
   );
 };

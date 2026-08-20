@@ -111,6 +111,7 @@ export const authAPI = {
   updateLanguage: (lang)  => api.patch('/user/language', { language: lang }),
   updateProfile:  (data)  => api.patch('/user/profile', data),
   updateVideoVolume: (volume) => api.patch('/user/video-volume', { volume }),
+  updateProtectedPosts: (protectedPosts) => api.patch('/user/protected-posts', { protected_posts: protectedPosts }),
   updateUsername: (username) => api.patch('/user/username', { username }),
   updateCountry:  (country)  => api.patch('/user/country', { country }),
   updateGender:   (gender)   => api.patch('/user/gender', { gender }),
@@ -118,7 +119,12 @@ export const authAPI = {
     const form = new FormData();
     form.append('avatar', file);
     return api.post('/upload/avatar', form, { headers: { 'Content-Type': 'multipart/form-data' } });
-  }
+  },
+  getFollowRequests: () => api.get('/user/follow-requests'),
+  getFollowRequestsCount: () => api.get('/user/follow-requests/count'),
+  acceptFollowRequest: (username) => api.post(`/user/follow-requests/${username}/accept`),
+  declineFollowRequest: (username) => api.post(`/user/follow-requests/${username}/decline`),
+  cancelFollowRequest: (username) => api.delete(`/user/follow-requests/${username}`)
 };
 
 export const postsAPI = {

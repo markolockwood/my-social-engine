@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { usersAPI } from '@/api/api';
 import { useAuth } from '@/context/AuthContext';
+import UserDisplayName from './UserDisplayName';
 import './UserHoverCard.css';
 
 const UserHoverCard = ({ username, position, onMouseEnter, onMouseLeave }) => {
@@ -130,7 +131,12 @@ const UserHoverCard = ({ username, position, onMouseEnter, onMouseLeave }) => {
         className="user-hover-card-info"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="user-hover-card-name">{userData.display_name}</div>
+        <div className="user-hover-card-name">
+          <UserDisplayName
+            displayName={userData.display_name}
+            isProtected={userData.protected_posts}
+          />
+        </div>
         <div className="user-hover-card-username">@{userData.username}</div>
       </Link>
 

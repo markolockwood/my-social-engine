@@ -90,11 +90,17 @@ try {
     $router->patch('/user/language', 'UserController', 'updateLanguage');
     $router->patch('/user/profile', 'UserController', 'updateProfile');
     $router->patch('/user/video-volume', 'UserController', 'updateVideoVolume');
+    $router->patch('/user/protected-posts', 'UserController', 'updateProtectedPosts');
     $router->get('/user/account-info', 'UserController', 'getAccountInfo');
     $router->patch('/user/username', 'UserController', 'updateUsername');
     $router->patch('/user/country', 'UserController', 'updateCountry');
     $router->patch('/user/gender', 'UserController', 'updateGender');
     $router->post('/upload/avatar', 'UserController', 'uploadAvatar');
+    $router->get('/user/follow-requests', 'UserController', 'getFollowRequests');
+    $router->get('/user/follow-requests/count', 'UserController', 'getFollowRequestsCount');
+    $router->post('/user/follow-requests/{username}/accept', 'UserController', 'acceptFollowRequest');
+    $router->post('/user/follow-requests/{username}/decline', 'UserController', 'declineFollowRequest');
+    $router->delete('/user/follow-requests/{username}', 'UserController', 'cancelFollowRequest');
 
     // Запуск роутера
     $router->dispatch($requestMethod, $path);

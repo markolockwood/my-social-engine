@@ -8,7 +8,8 @@
     "bookmarks": "Закладки",
     "profile": "Профиль",
     "post": "Твитнуть",
-    "settings": "Настройки"
+    "settings": "Настройки",
+    "follower_requests": "Запросы на подписку"
   },
   "theme": {
     "to_dark": "Тёмная тема",
@@ -79,7 +80,16 @@
     "retweeted": "Ретвитнул",
     "follow": "Подписаться",
     "unfollow": "Отписаться",
-    "follow_error": "Ошибка при изменении подписки"
+    "following_btn": "Подписан",
+    "pending": "Отправлено",
+    "cancel_request": "Отменить",
+    "follow_error": "Ошибка при изменении подписки",
+    "protected_posts_title": "Эти посты защищены",
+    "protected_posts_message": "Только одобренные подписчики могут видеть посты @{{username}}. Чтобы запросить доступ, нажмите кнопку Подписаться.",
+    "cancel_request_title": "Отменить запрос на подписку?",
+    "cancel_request_message": "Это отменит ваш запрос на подписку на @{{username}}",
+    "cancel_request_confirm": "Отменить запрос",
+    "cancel_request_back": "Назад"
   },
   "post_page": {
     "loading": "Загрузка...",
@@ -134,8 +144,15 @@
     "error": "Ошибка при загрузке пользователей",
     "followers": "Читатели",
     "following": "Читаемые",
+    "requests": "Запросы",
     "no_followers": "Пока нет читателей",
     "no_following": "Пока не читает никого"
+  },
+  "follower_requests": {
+    "title": "Запросы на подписку",
+    "empty": "Нет запросов на подписку",
+    "accept": "Принять",
+    "decline": "Отклонить"
   },
   "settings": {
     "title": "Настройки",
@@ -157,7 +174,14 @@
       "chat": "Чат",
       "chat_desc": "Настройки приватности личных сообщений.",
       "audience": "Аудитория, медиа и отметки",
-      "audience_desc": "Управляйте тем, кто видит ваши посты и может отмечать вас."
+      "audience_desc": "Управляйте тем, кто видит ваши посты и может отмечать вас.",
+      "audience_description": "Управляйте тем, какую информацию вы разрешаете видеть другим людям в X.",
+      "protect_posts_title": "Защита постов",
+      "protect_posts_desc": "Ваши посты и другая информация об аккаунте будут видны только вашим подписчикам.",
+      "protect_confirm_title": "Защитить ваши посты?",
+      "protect_confirm_message": "Это сделает их видимыми только вашим подписчикам.",
+      "protect_confirm_btn": "Защитить",
+      "protect_cancel_btn": "Отмена"
     },
     "account_info": {
       "title": "Информация об аккаунте",
@@ -171,6 +195,7 @@
       "language": "Язык",
       "language_en": "English",
       "language_ru": "Русский",
+      "language_uk": "Українська",
       "gender": "Пол",
       "gender_male": "Мужской",
       "gender_female": "Женский",

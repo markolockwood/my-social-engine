@@ -89,7 +89,7 @@ class User {
     public function getByUsername($username) {
         $stmt = $this->db->query(
             "SELECT u.id, u.username, u.display_name, u.bio, u.avatar_url, u.location,
-                    u.birth_date, u.created_at,
+                    u.birth_date, u.created_at, u.protected_posts,
                     (SELECT COUNT(*) FROM follows WHERE follower_id = u.id) as following_count,
                     (SELECT COUNT(*) FROM follows WHERE following_id = u.id) as followers_count,
                     (SELECT COUNT(*) FROM posts WHERE user_id = u.id) as posts_count

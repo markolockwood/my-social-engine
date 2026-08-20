@@ -25,9 +25,27 @@ class UserController extends BaseController {
 
         // Если пользователь авторизован, проверяем статус подписки
         if ($currentUserId && $currentUserId !== $userData['id']) {
-            $userData['is_following'] = $user->isFollowing($currentUserId, $userData['id']);
+            $db = Database::getInstance();
+
+            // Проверяем подписку
+            $isFollowing = $user->isFollowing($currentUserId, $userData['id']);
+
+            if ($isFollowing) {
+                $userData['follow_status'] = 'following';
+            } else {
+                // Проверяем наличие отправленного запроса
+                $pendingRequest = $db->query(
+                    "SELECT id FROM follow_requests WHERE follower_id = ? AND following_id = ?",
+                    [$currentUserId, $userData['id']]
+                )->fetch();
+
+                $userData['follow_status'] = $pendingRequest ? 'pending' : 'none';
+            }
+
+            $userData['is_following'] = $isFollowing;
         } else {
             $userData['is_following'] = false;
+            $userData['follow_status'] = 'none';
         }
 
         $this->sendResponse(['user' => $userData]);
@@ -46,10 +64,28 @@ class UserController extends BaseController {
         $user = new User();
         $userData = $user->getByUsername($username);
 
+        // Проверка: если посты защищены и текущий пользователь не подписан
+        if ($userData['protected_posts'] === true || $userData['protected_posts'] === 't') {
+            // Владелец аккаунта видит свои посты
+            if ($currentUserId === $userData['id']) {
+                $post = new Post();
+                $posts = $post->getByUserId($userData['id'], $limit, $offset, $currentUserId);
+                $this->sendResponse(['posts' => $posts, 'protected' => false]);
+                return;
+            }
+
+            // Проверяем подписку
+            if (!$currentUserId || !$user->isFollowing($currentUserId, $userData['id'])) {
+                // Не подписан - возвращаем пустой массив с флагом protected
+                $this->sendResponse(['posts' => [], 'protected' => true]);
+                return;
+            }
+        }
+
+        // Посты не защищены или пользователь подписан
         $post = new Post();
         $posts = $post->getByUserId($userData['id'], $limit, $offset, $currentUserId);
-
-        $this->sendResponse(['posts' => $posts]);
+        $this->sendResponse(['posts' => $posts, 'protected' => false]);
     }
 
     /**
@@ -65,10 +101,28 @@ class UserController extends BaseController {
         $user = new User();
         $userData = $user->getByUsername($username);
 
+        // Проверка: если посты защищены и текущий пользователь не подписан
+        if ($userData['protected_posts'] === true || $userData['protected_posts'] === 't') {
+            // Владелец аккаунта видит свои ответы
+            if ($currentUserId === $userData['id']) {
+                $post = new Post();
+                $replies = $post->getRepliesByUser($userData['id'], $currentUserId, $limit, $offset);
+                $this->sendResponse(['replies' => $replies, 'protected' => false]);
+                return;
+            }
+
+            // Проверяем подписку
+            if (!$currentUserId || !$user->isFollowing($currentUserId, $userData['id'])) {
+                // Не подписан - возвращаем пустой массив с флагом protected
+                $this->sendResponse(['replies' => [], 'protected' => true]);
+                return;
+            }
+        }
+
+        // Посты не защищены или пользователь подписан
         $post = new Post();
         $replies = $post->getRepliesByUser($userData['id'], $currentUserId, $limit, $offset);
-
-        $this->sendResponse(['replies' => $replies]);
+        $this->sendResponse(['replies' => $replies, 'protected' => false]);
     }
 
     /**
@@ -282,6 +336,26 @@ class UserController extends BaseController {
     }
 
     /**
+     * PATCH /user/protected-posts — включение/выключение защиты постов
+     */
+    public function updateProtectedPosts() {
+        $authUser = AuthMiddleware::requireAuth();
+        $input = $this->getInput();
+
+        // Получаем значение как boolean
+        $protectedPosts = isset($input['protected_posts']) && $input['protected_posts'] === true;
+
+        $db = Database::getInstance();
+        // PostgreSQL принимает boolean как true/false
+        $db->query(
+            "UPDATE users SET protected_posts = ?, updated_at = NOW() WHERE id = ?",
+            [$protectedPosts ? 'true' : 'false', $authUser['userId']]
+        );
+
+        $this->sendResponse(['protected_posts' => $protectedPosts]);
+    }
+
+    /**
      * PATCH /user/profile — обновление профиля
      */
     public function updateProfile() {
@@ -393,13 +467,69 @@ class UserController extends BaseController {
 
         $user = new User();
         $targetUser = $user->getByUsername($username);
+        $db = Database::getInstance();
 
-        $user->follow($authUser['userId'], $targetUser['id']);
+        // Проверка: если целевой пользователь защищён
+        if ($targetUser['protected_posts'] === true || $targetUser['protected_posts'] === 't') {
+            // Проверяем, есть ли встречный запрос от целевого пользователя
+            $reverseRequest = $db->query(
+                "SELECT id FROM follow_requests WHERE follower_id = ? AND following_id = ?",
+                [$targetUser['id'], $authUser['userId']]
+            )->fetch();
 
-        $this->sendResponse([
-            'success' => true,
-            'message' => 'Successfully followed user'
-        ]);
+            if ($reverseRequest) {
+                // Встречный запрос существует → взаимная подписка
+                // Удаляем запрос
+                $db->query("DELETE FROM follow_requests WHERE id = ?", [$reverseRequest['id']]);
+
+                // Создаём обе подписки
+                $user->follow($authUser['userId'], $targetUser['id']);
+                $user->follow($targetUser['id'], $authUser['userId']);
+
+                $this->sendResponse([
+                    'success' => true,
+                    'follow_status' => 'following',
+                    'message' => 'Mutual follow established'
+                ]);
+                return;
+            }
+
+            // Проверяем, не отправлен ли уже запрос
+            $existingRequest = $db->query(
+                "SELECT id FROM follow_requests WHERE follower_id = ? AND following_id = ?",
+                [$authUser['userId'], $targetUser['id']]
+            )->fetch();
+
+            if ($existingRequest) {
+                $this->sendResponse([
+                    'success' => true,
+                    'follow_status' => 'pending',
+                    'message' => 'Follow request already sent'
+                ]);
+                return;
+            }
+
+            // Создаём запрос на подписку
+            $db->query(
+                "INSERT INTO follow_requests (follower_id, following_id) VALUES (?, ?)",
+                [$authUser['userId'], $targetUser['id']]
+            );
+
+            $this->sendResponse([
+                'success' => true,
+                'follow_status' => 'pending',
+                'message' => 'Follow request sent'
+            ]);
+        } else {
+            // Аккаунт не защищён — обычная подписка
+            $user->follow($authUser['userId'], $targetUser['id']);
+
+            $this->sendResponse([
+                'success' => true,
+                'follow_status' => 'following',
+                'message' => 'Successfully followed user'
+            ]);
+        }
     }
 
     /**
@@ -416,6 +546,122 @@ class UserController extends BaseController {
         $this->sendResponse([
             'success' => true,
             'message' => 'Successfully unfollowed user'
+        ]);
+    }
+
+    /**
+     * GET /user/follow-requests — список входящих запросов на подписку
+     */
+    public function getFollowRequests() {
+        $authUser = AuthMiddleware::requireAuth();
+        $db = Database::getInstance();
+
+        $stmt = $db->query(
+            "SELECT u.id, u.username, u.display_name, u.avatar_url, u.bio, fr.created_at
+             FROM follow_requests fr
+             JOIN users u ON fr.follower_id = u.id
+             WHERE fr.following_id = ?
+             ORDER BY fr.created_at DESC",
+            [$authUser['userId']]
+        );
+
+        $requests = $stmt->fetchAll();
+
+        $this->sendResponse(['requests' => $requests]);
+    }
+
+    /**
+     * GET /user/follow-requests/count — количество входящих запросов
+     */
+    public function getFollowRequestsCount() {
+        $authUser = AuthMiddleware::requireAuth();
+        $db = Database::getInstance();
+
+        $stmt = $db->query(
+            "SELECT COUNT(*) as count FROM follow_requests WHERE following_id = ?",
+            [$authUser['userId']]
+        );
+
+        $result = $stmt->fetch();
+
+        $this->sendResponse(['count' => (int)$result['count']]);
+    }
+
+    /**
+     * POST /user/follow-requests/{username}/accept — принять запрос на подписку
+     */
+    public function acceptFollowRequest($username) {
+        $authUser = AuthMiddleware::requireAuth();
+        $db = Database::getInstance();
+
+        $user = new User();
+        $requester = $user->getByUsername($username);
+
+        // Проверяем существование запроса
+        $request = $db->query(
+            "SELECT id FROM follow_requests WHERE follower_id = ? AND following_id = ?",
+            [$requester['id'], $authUser['userId']]
+        )->fetch();
+
+        if (!$request) {
+            http_response_code(404);
+            echo json_encode(['error' => 'Follow request not found']);
+            exit();
+        }
+
+        // Удаляем запрос
+        $db->query("DELETE FROM follow_requests WHERE id = ?", [$request['id']]);
+
+        // Создаём подписку
+        $user->follow($requester['id'], $authUser['userId']);
+
+        $this->sendResponse([
+            'success' => true,
+            'message' => 'Follow request accepted'
+        ]);
+    }
+
+    /**
+     * POST /user/follow-requests/{username}/decline — отклонить запрос на подписку
+     */
+    public function declineFollowRequest($username) {
+        $authUser = AuthMiddleware::requireAuth();
+        $db = Database::getInstance();
+
+        $user = new User();
+        $requester = $user->getByUsername($username);
+
+        // Удаляем запрос
+        $db->query(
+            "DELETE FROM follow_requests WHERE follower_id = ? AND following_id = ?",
+            [$requester['id'], $authUser['userId']]
+        );
+
+        $this->sendResponse([
+            'success' => true,
+            'message' => 'Follow request declined'
+        ]);
+    }
+
+    /**
+     * DELETE /user/follow-requests/{username} — отменить свой отправленный запрос
+     */
+    public function cancelFollowRequest($username) {
+        $authUser = AuthMiddleware::requireAuth();
+        $db = Database::getInstance();
+
+        $user = new User();
+        $targetUser = $user->getByUsername($username);
+
+        // Удаляем свой запрос
+        $db->query(
+            "DELETE FROM follow_requests WHERE follower_id = ? AND following_id = ?",
+            [$authUser['userId'], $targetUser['id']]
+        );
+
+        $this->sendResponse([
+            'success' => true,
+            'message' => 'Follow request cancelled'
         ]);
     }
 

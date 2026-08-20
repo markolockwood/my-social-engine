@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
+import UserDisplayName from '@/components/user/UserDisplayName';
 import './QuotedPost.css';
 
 /**
@@ -37,7 +38,10 @@ const QuotedPost = ({ post, onClick }) => {
           className="avatar avatar-sm"
         />
         <Link to={`/profile/${post.username}`} className="quoted-post-name">
-          {post.display_name}
+          <UserDisplayName
+            displayName={post.display_name}
+            isProtected={post.protected_posts}
+          />
         </Link>
         <span className="quoted-post-handle">@{post.username}</span>
         <span className="quoted-post-dot">·</span>

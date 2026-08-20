@@ -8,7 +8,8 @@
     "bookmarks": "Bookmarks",
     "profile": "Profile",
     "post": "Post",
-    "settings": "Settings"
+    "settings": "Settings",
+    "follower_requests": "Follower requests"
   },
   "theme": {
     "to_dark": "Dark theme",
@@ -79,7 +80,16 @@
     "retweeted": "Retweeted",
     "follow": "Follow",
     "unfollow": "Unfollow",
-    "follow_error": "Failed to update follow status"
+    "following_btn": "Following",
+    "pending": "Pending",
+    "cancel_request": "Cancel",
+    "follow_error": "Failed to update follow status",
+    "protected_posts_title": "These posts are protected",
+    "protected_posts_message": "Only approved followers can see @{{username}}'s posts. To request access, click Follow.",
+    "cancel_request_title": "Cancel follow request?",
+    "cancel_request_message": "This will cancel your request to follow @{{username}}",
+    "cancel_request_confirm": "Cancel request",
+    "cancel_request_back": "Go back"
   },
   "post_page": {
     "loading": "Loading...",
@@ -134,8 +144,15 @@
     "error": "Error loading users",
     "followers": "Followers",
     "following": "Following",
+    "requests": "Requests",
     "no_followers": "No followers yet",
     "no_following": "Not following anyone yet"
+  },
+  "follower_requests": {
+    "title": "Follower requests",
+    "empty": "No follower requests",
+    "accept": "Accept",
+    "decline": "Decline"
   },
   "settings": {
     "title": "Settings",
@@ -157,7 +174,14 @@
       "chat": "Chat",
       "chat_desc": "Manage who can message you and chat privacy settings.",
       "audience": "Audience, media and tagging",
-      "audience_desc": "Manage what information you allow other people to see."
+      "audience_desc": "Manage what information you allow other people to see.",
+      "audience_description": "Manage what information you allow other people on X to see.",
+      "protect_posts_title": "Protect your posts",
+      "protect_posts_desc": "When selected, your posts and other account information are only visible to people who follow you.",
+      "protect_confirm_title": "Protect your posts?",
+      "protect_confirm_message": "This will make them visible only to your X followers.",
+      "protect_confirm_btn": "Protect",
+      "protect_cancel_btn": "Cancel"
     },
     "account_info": {
       "title": "Account information",
@@ -171,6 +195,7 @@
       "language": "Language",
       "language_en": "English",
       "language_ru": "Русский",
+      "language_uk": "Українська",
       "gender": "Gender",
       "gender_male": "Male",
       "gender_female": "Female",

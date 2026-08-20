@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { usersAPI } from '../api/api';
+import { usersAPI, authAPI } from '../api/api';
 import { useAuth } from '../context/AuthContext';
 import UserCard from '@/components/user/UserCard';
+import UserDisplayName from '@/components/user/UserDisplayName';
 import './FollowList.css';
 
 const FollowList = () => {
-  const { username, tab } = useParams(); // tab: 'followers' or 'following'
+  const { username, tab } = useParams(); // tab: 'followers' or 'following' or 'requests'
   const navigate = useNavigate();
-  const { t } = useAuth();
+  const { user: authUser, t } = useAuth();
 
   const [profileUser, setProfileUser] = useState(null);
   const [users, setUsers] = useState([]);
@@ -16,11 +17,13 @@ const FollowList = () => {
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState('');
+  const [requestsCount, setRequestsCount] = useState(0);
 
   const offsetRef = useRef(0);
   const loaderRef = useRef(null);
 
   const activeTab = tab || 'followers';
+  const isOwnProfile = authUser && username === authUser.username;
 
   useEffect(() => {
     // Сброс при смене пользователя или таба
@@ -28,6 +31,12 @@ const FollowList = () => {
     setUsers([]);
     setHasMore(true);
     loadProfile();
+
+    // Загружаем счётчик запросов если это свой профиль
+    if (isOwnProfile) {
+      loadRequestsCount();
+    }
+
     loadUsers(true);
   }, [username, activeTab]);
 
@@ -63,6 +72,15 @@ const FollowList = () => {
     }
   };
 
+  const loadRequestsCount = async () => {
+    try {
+      const res = await authAPI.getFollowRequestsCount();
+      setRequestsCount(res.data.count || 0);
+    } catch (err) {
+      console.error('Failed to load requests count', err);
+    }
+  };
+
   const loadUsers = async (isInitial) => {
     if (isInitial) {
       setLoading(true);
@@ -71,6 +89,16 @@ const FollowList = () => {
     }
 
     try {
+      // Если вкладка "requests" - загружаем запросы на подписку
+      if (activeTab === 'requests') {
+        const res = await authAPI.getFollowRequests();
+        setUsers(res.data.requests || []);
+        setHasMore(false); // Запросы не пагинируются
+        setLoading(false);
+        setLoadingMore(false);
+        return;
+      }
+
       const limit = isInitial ? 40 : 30;
       const offset = isInitial ? 0 : offsetRef.current;
 
@@ -117,6 +145,28 @@ const FollowList = () => {
     );
   };
 
+  const handleAcceptRequest = async (username) => {
+    try {
+      await authAPI.acceptFollowRequest(username);
+      setUsers(prev => prev.filter(u => u.username !== username));
+      setRequestsCount(prev => Math.max(0, prev - 1));
+    } catch (err) {
+      console.error('Failed to accept request', err);
+      alert('Failed to accept request');
+    }
+  };
+
+  const handleDeclineRequest = async (username) => {
+    try {
+      await authAPI.declineFollowRequest(username);
+      setUsers(prev => prev.filter(u => u.username !== username));
+      setRequestsCount(prev => Math.max(0, prev - 1));
+    } catch (err) {
+      console.error('Failed to decline request', err);
+      alert('Failed to decline request');
+    }
+  };
+
   if (loading && users.length === 0) {
     return (
       <main className="main">
@@ -161,23 +211,77 @@ const FollowList = () => {
           >
             {t('follow_list.following')}
           </div>
+          {isOwnProfile && requestsCount > 0 && (
+            <div
+              className={`follow-list-tab ${activeTab === 'requests' ? 'active' : ''}`}
+              onClick={() => handleTabChange('requests')}
+            >
+              {t('follow_list.requests')}
+              <span className="follow-list-badge">{requestsCount > 99 ? '99+' : requestsCount}</span>
+            </div>
+          )}
         </div>
 
         {users.length === 0 && !loading ? (
           <div className="empty-state">
-            <p>{activeTab === 'followers' ? t('follow_list.no_followers') : t('follow_list.no_following')}</p>
+            <p>
+              {activeTab === 'requests'
+                ? t('follower_requests.empty')
+                : activeTab === 'followers'
+                ? t('follow_list.no_followers')
+                : t('follow_list.no_following')}
+            </p>
           </div>
         ) : (
           <>
-            {users.map(user => (
-              <UserCard
-                key={user.id}
-                user={user}
-                onFollowChange={handleFollowChange}
-              />
-            ))}
+            {activeTab === 'requests' ? (
+              // Отображение запросов с кнопками Accept/Decline
+              users.map(user => (
+                <div key={user.id} className="follower-request-item">
+                  <img
+                    src={user.avatar_url || `https://i.pravatar.cc/150?u=${user.username}`}
+                    alt={user.display_name}
+                    className="follower-request-avatar"
+                    onClick={() => navigate(`/profile/${user.username}`)}
+                  />
+                  <div className="follower-request-info">
+                    <div className="follower-request-name" onClick={() => navigate(`/profile/${user.username}`)}>
+                      <UserDisplayName
+                        displayName={user.display_name}
+                        isProtected={user.protected_posts}
+                      />
+                    </div>
+                    <div className="follower-request-username">@{user.username}</div>
+                    {user.bio && <div className="follower-request-bio">{user.bio}</div>}
+                  </div>
+                  <div className="follower-request-actions">
+                    <button
+                      className="follower-request-btn follower-request-btn-decline"
+                      onClick={() => handleDeclineRequest(user.username)}
+                    >
+                      {t('follower_requests.decline')}
+                    </button>
+                    <button
+                      className="follower-request-btn follower-request-btn-accept"
+                      onClick={() => handleAcceptRequest(user.username)}
+                    >
+                      {t('follower_requests.accept')}
+                    </button>
+                  </div>
+                </div>
+              ))
+            ) : (
+              // Обычное отображение для followers/following
+              users.map(user => (
+                <UserCard
+                  key={user.id}
+                  user={user}
+                  onFollowChange={handleFollowChange}
+                />
+              ))
+            )}
 
-            {hasMore && (
+            {hasMore && activeTab !== 'requests' && (
               <div ref={loaderRef} className="load-more-trigger">
                 {loadingMore && <div className="loading-spinner">{t('follow_list.loading_more')}</div>}
               </div>

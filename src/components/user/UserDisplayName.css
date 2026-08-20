@@ -1,0 +1,10 @@
+.user-display-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.protected-icon {
+  font-size: 0.85em;
+  opacity: 0.7;
+}

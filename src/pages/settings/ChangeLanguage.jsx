@@ -63,6 +63,18 @@ const ChangeLanguage = () => {
               />
               <span className="change-form-radio-label">Русский</span>
             </label>
+
+            <label className={`change-form-radio-item${selectedLang === 'uk' ? ' selected' : ''}`}>
+              <input
+                type="radio"
+                name="language"
+                value="uk"
+                checked={selectedLang === 'uk'}
+                onChange={(e) => setSelectedLang(e.target.value)}
+                disabled={loading}
+              />
+              <span className="change-form-radio-label">Українська</span>
+            </label>
           </div>
 
           <button type="submit" className="change-form-btn" disabled={loading}>
